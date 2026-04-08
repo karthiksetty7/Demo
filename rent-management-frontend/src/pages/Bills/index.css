@@ -1,0 +1,191 @@
+.bill-container {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* FORM + FILTER */
+.bill-form,
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.bill-form input,
+.filter-container input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  flex: 1;
+  min-width: 150px;
+  transition: all 0.2s ease;
+}
+
+.bill-form input:focus,
+.filter-container input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* BUTTONS */
+.bill-form button {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.filter-container button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* TABLE */
+.table-container {
+  overflow-x: auto;
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+table th,
+table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+table th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+table tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* ACTION BUTTONS */
+.edit-btn {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-right: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.delete-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-right: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.print-btn {
+  background: #16a34a;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* MOBILE LIST */
+.mobile-list {
+  display: none;
+}
+
+.mobile-row {
+  background: #f9fafb;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-field {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.mobile-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  table {
+    display: none;
+  }
+
+  .mobile-list {
+    display: block;
+  }
+
+  .bill-form input,
+  .filter-container input {
+    min-width: 100%;
+  }
+
+  .bill-form button,
+  .filter-container button {
+    width: 100%;
+  }
+}
+
+/* PRINT STYLING */
+@media print {
+  body {
+    background: white;
+  }
+
+  .bill-container {
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .bill-form,
+  .filter-container,
+  .edit-btn,
+  .delete-btn,
+  .print-btn {
+    display: none !important;
+  }
+
+  table {
+    min-width: 100%;
+  }
+}
