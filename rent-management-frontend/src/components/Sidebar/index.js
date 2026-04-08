@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen, closeSidebar }) => {
     localStorage.removeItem('user'); // optional
 
     // 2. Redirect to login page
-    navigate('/login', { replace: true }); // replace:true prevents back navigation
+    navigate('/', { replace: true }); // replace:true prevents back navigation
   };
 
   return (
