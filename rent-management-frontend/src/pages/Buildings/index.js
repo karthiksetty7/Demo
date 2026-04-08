@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // for redirect
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import './index.css';
 
@@ -12,18 +12,18 @@ const Buildings = () => {
 
   const API_URL = 'https://demo-production-bf0f.up.railway.app/api/buildings';
 
-  // Fetch buildings on load
   useEffect(() => {
     fetchBuildings();
   }, []);
 
   const getToken = () => localStorage.getItem('token');
 
+  // Fetch all buildings
   const fetchBuildings = async () => {
     const token = getToken();
     if (!token) {
-      alert('No token found. Please login.');
-      navigate('/login'); // redirect to login page
+      alert('Please login to access buildings.');
+      navigate('/login');
       return;
     }
 
@@ -33,8 +33,8 @@ const Buildings = () => {
       });
 
       if (res.status === 401) {
-        alert('Token missing or invalid. Please login again.');
-        localStorage.removeItem('token'); // clear bad token
+        alert('Session expired. Please login again.');
+        localStorage.removeItem('token');
         navigate('/login');
         return;
       }
@@ -48,25 +48,36 @@ const Buildings = () => {
     }
   };
 
+  // Add or Update building
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!buildingName || !address) {
-      alert('Please provide building name and address');
+      alert('Please provide building name and address.');
       return;
     }
 
     const token = getToken();
     if (!token) {
-      alert('No token found. Please login.');
+      alert('Please login.');
       navigate('/login');
       return;
     }
 
     try {
+      let res;
       if (editId) {
-        alert('Update feature not implemented in backend');
+        // Update building
+        res = await fetch(`${API_URL}/updateBuilding/${editId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: buildingName, address }),
+        });
       } else {
-        const res = await fetch(`${API_URL}/addBuilding`, {
+        // Add new building
+        res = await fetch(`${API_URL}/addBuilding`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -74,17 +85,18 @@ const Buildings = () => {
           },
           body: JSON.stringify({ name: buildingName, address }),
         });
-
-        if (res.status === 401) {
-          alert('Token invalid. Please login again.');
-          localStorage.removeItem('token');
-          navigate('/login');
-          return;
-        }
-
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       }
 
+      if (res.status === 401) {
+        alert('Token invalid. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+        return;
+      }
+
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      // Clear form and refresh list
       setBuildingName('');
       setAddress('');
       setEditId(null);
@@ -95,18 +107,27 @@ const Buildings = () => {
     }
   };
 
+  // Edit building
   const handleEdit = (building) => {
     setBuildingName(building.name);
     setAddress(building.address);
     setEditId(building.id);
   };
 
+  // Cancel edit
+  const handleCancel = () => {
+    setEditId(null);
+    setBuildingName('');
+    setAddress('');
+  };
+
+  // Delete building
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this building?')) return;
 
     const token = getToken();
     if (!token) {
-      alert('No token found. Please login.');
+      alert('Please login.');
       navigate('/login');
       return;
     }
@@ -132,12 +153,6 @@ const Buildings = () => {
     }
   };
 
-  const handleCancel = () => {
-    setEditId(null);
-    setBuildingName('');
-    setAddress('');
-  };
-
   return (
     <Layout>
       <div className="building-container">
@@ -159,9 +174,7 @@ const Buildings = () => {
             required
           />
 
-          <button type="submit">
-            {editId ? 'Update Building' : 'Save Building'}
-          </button>
+          <button type="submit">{editId ? 'Update Building' : 'Save Building'}</button>
 
           {editId && (
             <button type="button" className="cancel-btn" onClick={handleCancel}>
@@ -219,4 +232,4 @@ const Buildings = () => {
   );
 };
 
-export default Buildings
+export default Buildings;
