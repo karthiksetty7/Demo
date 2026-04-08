@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import './index.css';
@@ -12,14 +12,10 @@ const Buildings = () => {
 
   const API_URL = 'https://demo-production-bf0f.up.railway.app/api/buildings';
 
-  useEffect(() => {
-    fetchBuildings();
-  }, []);
-
   const getToken = () => localStorage.getItem('token');
 
-  // Fetch all buildings
-  const fetchBuildings = async () => {
+  // Wrap fetchBuildings in useCallback so it can safely go in useEffect dependencies
+  const fetchBuildings = useCallback(async () => {
     const token = getToken();
     if (!token) {
       alert('Please login to access buildings.');
@@ -46,7 +42,12 @@ const Buildings = () => {
       console.error('Error fetching buildings:', err);
       alert('Failed to fetch buildings.');
     }
-  };
+  }, [navigate]);
+
+  // Fetch all buildings on mount
+  useEffect(() => {
+    fetchBuildings();
+  }, [fetchBuildings]); // eslint warning resolved
 
   // Add or Update building
   const handleSubmit = async (e) => {
@@ -232,4 +233,4 @@ const Buildings = () => {
   );
 };
 
-export default Buildings;
+export default Buildings
