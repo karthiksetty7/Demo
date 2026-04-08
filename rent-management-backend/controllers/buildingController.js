@@ -10,6 +10,8 @@ export const getBuildings = async (req, res) => {
   }
 };
 
+
+
 // Add building
 export const addBuilding = async (req, res) => {
   const { name, address } = req.body;
