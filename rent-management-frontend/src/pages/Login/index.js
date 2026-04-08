@@ -21,7 +21,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://demo-production-bf0f.up.railway.app/api/auth/login', {
+      const response = await fetch('https://demo-production-bf0f.up.railway.app/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -86,4 +86,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Login
