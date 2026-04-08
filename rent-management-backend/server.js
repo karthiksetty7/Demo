@@ -3,16 +3,18 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import buildingRoutes from './routes/buildingRoutes.js';
-import floorRoutes from './routes/floorRoutes.js'; // <- floor routes
+import floorRoutes from './routes/floorRoutes.js';
 import { connectDB, sequelize } from './config/db.js';
 
 dotenv.config();
 const app = express();
 
+// Updated CORS config
 app.use(cors({
   origin: ["null", "http://localhost:3000"], 
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type"]
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
+  allowedHeaders: ["Content-Type", "Authorization"], // ✅ added 'Authorization'
+  credentials: true // optional, if you use cookies
 }));
 
 app.use(express.json());
@@ -20,7 +22,7 @@ app.get('/', (req, res) => res.send('API is running...'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/buildings', buildingRoutes);
-app.use('/api/floors', floorRoutes); // <--- updated
+app.use('/api/floors', floorRoutes);
 
 const startServer = async () => {
   try {
