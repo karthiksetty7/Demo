@@ -126,14 +126,22 @@ const Tenants = () => {
           return;
         }
         const data = await res.json();
-        setTenants(Array.isArray(data) ? data : []);
+        // Map building, floor, room names immediately
+        setTenants(
+          (Array.isArray(data) ? data : []).map(t => ({
+            ...t,
+            building: { name: t.building?.name || buildings.find(b => b.id === t.building_id)?.name || '' },
+            floor: { floor_number: t.floor?.floor_number || floors.find(f => f.id === t.floor_id)?.floorName || '' },
+            room: { room_number: t.room?.room_number || rooms.find(r => r.id === t.room_id)?.roomNumber || '' },
+          }))
+        );
       } catch (err) {
         console.error('Failed to fetch tenants:', err);
         setTenants([]);
       }
     };
     fetchTenants();
-  }, []);
+  }, [buildings, floors, rooms]);
 
   const filteredFloors = floors.filter(f => f.buildingId === parseInt(buildingId));
   const filteredRooms = rooms.filter(
@@ -173,11 +181,11 @@ const Tenants = () => {
     formData.append('name', name);
     formData.append('phone', phone);
     formData.append('advance', advance);
-    formData.append('join_date', joiningDate); // ✅ match backend
+    formData.append('join_date', joiningDate);
     formData.append('building_id', buildingId);
     formData.append('floor_id', floorId);
     formData.append('room_id', roomId);
-    files.forEach(f => formData.append('files', f)); // backend converts to documents
+    files.forEach(f => formData.append('files', f));
 
     try {
       let res;
@@ -198,7 +206,20 @@ const Tenants = () => {
       if (!res.ok) throw new Error('Failed to save tenant');
       const savedTenant = await res.json();
 
-      setTenants(prev => (editingId ? prev.map(t => (t.id === editingId ? savedTenant : t)) : [...prev, savedTenant]));
+      // Map building, floor, room names immediately
+      const mappedTenant = {
+        ...savedTenant,
+        building: { name: buildings.find(b => b.id === parseInt(savedTenant.building_id))?.name || '' },
+        floor: { floor_number: floors.find(f => f.id === parseInt(savedTenant.floor_id))?.floorName || '' },
+        room: { room_number: rooms.find(r => r.id === parseInt(savedTenant.room_id))?.roomNumber || '' },
+      };
+
+      setTenants(prev =>
+        editingId
+          ? prev.map(t => (t.id === editingId ? mappedTenant : t))
+          : [...prev, mappedTenant]
+      );
+
       handleCancel();
     } catch (err) {
       console.error(err);
@@ -211,7 +232,7 @@ const Tenants = () => {
     setName(tenant.name);
     setPhone(tenant.phone);
     setAdvance(tenant.advance);
-    setJoiningDate(tenant.join_date); // ✅ match backend
+    setJoiningDate(tenant.join_date);
     setBuildingId(tenant.building_id.toString());
     setFloorId(tenant.floor_id.toString());
     setRoomId(tenant.room_id.toString());
