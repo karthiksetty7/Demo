@@ -35,18 +35,21 @@ export const updateTenant = async (req, res) => {
     if (!tenant)
       return res.status(404).json({ message: 'Tenant not found' });
 
+    // new uploaded files
     const newDocs = req.files?.map(
       f => ({ url: `/uploads/tenants/${f.filename}` })
     ) || [];
 
     await tenant.update({
       ...req.body,
-      documents: [...(tenant.documents || []), ...newDocs]
+      // replace old documents completely
+      documents: newDocs.length ? newDocs : tenant.documents
     });
 
     res.json(tenant);
 
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Failed to update tenant' });
   }
 };
