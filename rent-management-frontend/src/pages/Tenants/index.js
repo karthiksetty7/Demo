@@ -21,16 +21,27 @@ const Tenants = () => {
   const [editingId, setEditingId] = useState(null);
 
   const fileInputRef = useRef(null);
+  const getToken = () => localStorage.getItem('token');
 
   // Fetch Buildings
   useEffect(() => {
     const fetchBuildings = async () => {
+      const token = getToken();
+      if (!token) return;
       try {
-        const res = await fetch(`${BASE_URL}/buildings/getBuildings`);
+        const res = await fetch(`${BASE_URL}/buildings/getBuildings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          alert('Session expired. Please login again.');
+          localStorage.removeItem('token');
+          return;
+        }
         const data = await res.json();
         setBuildings(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch buildings:', err);
+        setBuildings([]);
       }
     };
     fetchBuildings();
@@ -39,18 +50,29 @@ const Tenants = () => {
   // Fetch Floors
   useEffect(() => {
     const fetchFloors = async () => {
+      const token = getToken();
+      if (!token) return;
       try {
-        const res = await fetch(`${BASE_URL}/floors/getFloors`);
+        const res = await fetch(`${BASE_URL}/floors/getFloors`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          alert('Session expired. Please login again.');
+          localStorage.removeItem('token');
+          return;
+        }
         const data = await res.json();
         setFloors(
           (Array.isArray(data) ? data : []).map(f => ({
             id: f.id,
             buildingId: f.building_id,
+            buildingName: f.building?.name || '',
             floorName: f.floor_number,
           }))
         );
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch floors:', err);
+        setFloors([]);
       }
     };
     fetchFloors();
@@ -59,19 +81,31 @@ const Tenants = () => {
   // Fetch Rooms
   useEffect(() => {
     const fetchRooms = async () => {
+      const token = getToken();
+      if (!token) return;
       try {
-        const res = await fetch(`${BASE_URL}/rooms/getRooms`);
+        const res = await fetch(`${BASE_URL}/rooms/getRooms`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          alert('Session expired. Please login again.');
+          localStorage.removeItem('token');
+          return;
+        }
         const data = await res.json();
         setRooms(
           (Array.isArray(data) ? data : []).map(r => ({
             id: r.id,
             buildingId: r.building_id,
+            buildingName: r.building?.name || '',
             floorId: r.floor_id,
+            floorName: r.floor?.floor_number || '',
             roomNumber: r.room_number,
           }))
         );
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch rooms:', err);
+        setRooms([]);
       }
     };
     fetchRooms();
@@ -79,22 +113,32 @@ const Tenants = () => {
 
   // Fetch Tenants
   useEffect(() => {
-    const loadTenants = async () => {
+    const fetchTenants = async () => {
+      const token = getToken();
+      if (!token) return;
       try {
-        const res = await fetch(`${BASE_URL}/tenants/getTenants`);
+        const res = await fetch(`${BASE_URL}/tenants/getTenants`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          alert('Session expired. Please login again.');
+          localStorage.removeItem('token');
+          return;
+        }
         const data = await res.json();
         setTenants(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch tenants:', err);
+        setTenants([]);
       }
     };
-    loadTenants();
+    fetchTenants();
   }, []);
 
   // Filter floors and rooms based on selection
-  const filteredFloors = floors.filter(f => f.buildingId === Number(buildingId));
+  const filteredFloors = floors.filter(f => f.buildingId === parseInt(buildingId));
   const filteredRooms = rooms.filter(
-    r => r.buildingId === Number(buildingId) && r.floorId === Number(floorId)
+    r => r.buildingId === parseInt(buildingId) && r.floorId === parseInt(floorId)
   );
 
   // Handle file input (only images)
@@ -140,22 +184,25 @@ const Tenants = () => {
     files.forEach(f => formData.append('files', f));
 
     try {
-      const url = editingId
-        ? `${BASE_URL}/tenants/updateTenant/${editingId}`
-        : `${BASE_URL}/tenants/addTenant`;
-      const method = editingId ? 'PUT' : 'POST';
+      let res;
+      if (editingId) {
+        res = await fetch(`${BASE_URL}/tenants/updateTenant/${editingId}`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${getToken()}` },
+          body: formData,
+        });
+      } else {
+        res = await fetch(`${BASE_URL}/tenants/addTenant`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken()}` },
+          body: formData,
+        });
+      }
 
-      const res = await fetch(url, { method, body: formData });
       if (!res.ok) throw new Error('Failed to save tenant');
       const savedTenant = await res.json();
 
-      setTenants(prev => {
-        if (editingId) {
-          return prev.map(t => (t.id === editingId ? savedTenant : t));
-        }
-        return [...prev, savedTenant];
-      });
-
+      setTenants(prev => (editingId ? prev.map(t => (t.id === editingId ? savedTenant : t)) : [...prev, savedTenant]));
       handleCancel();
     } catch (err) {
       console.error(err);
@@ -181,7 +228,10 @@ const Tenants = () => {
   const handleDelete = async id => {
     if (!window.confirm('Are you sure you want to delete this tenant?')) return;
     try {
-      const res = await fetch(`${BASE_URL}/tenants/deleteTenant/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${BASE_URL}/tenants/deleteTenant/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
       if (!res.ok) throw new Error('Failed to delete tenant');
       setTenants(prev => prev.filter(t => t.id !== id));
     } catch (err) {
