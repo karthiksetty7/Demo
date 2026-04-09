@@ -20,6 +20,10 @@ const Tenants = () => {
   const [files, setFiles] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
+  const [filterName, setFilterName] = useState('');
+  const [filterRoom, setFilterRoom] = useState('');
+  const [filterBuilding, setFilterBuilding] = useState('');
+
   const fileInputRef = useRef(null);
   const getToken = () => localStorage.getItem('token');
 
@@ -126,7 +130,6 @@ const Tenants = () => {
           return;
         }
         const data = await res.json();
-        // Map building, floor, room names immediately
         setTenants(
           (Array.isArray(data) ? data : []).map(t => ({
             ...t,
@@ -149,16 +152,27 @@ const Tenants = () => {
   );
 
   const handleFileChange = e => {
-    const selectedFiles = Array.from(e.target.files);
-    const validFiles = selectedFiles.filter(f => {
-      if (!['image/png', 'image/jpeg', 'image/jpg'].includes(f.type)) {
-        alert(`File "${f.name}" is not an image. Only PNG/JPG/JPEG allowed.`);
-        return false;
-      }
-      return true;
-    });
-    setFiles(validFiles);
-  };
+  const selectedFiles = Array.from(e.target.files);
+
+  const validFiles = selectedFiles.filter(f => {
+    if (
+      ![
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'application/pdf'
+      ].includes(f.type)
+    ) {
+      alert(
+        `File "${f.name}" is not allowed. Only PNG, JPG, JPEG, PDF allowed.`
+      );
+      return false;
+    }
+    return true;
+  });
+
+  setFiles(validFiles);
+};
 
   const validate = () => {
     if (!/^[a-zA-Z\s]+$/.test(name)) {
@@ -206,7 +220,6 @@ const Tenants = () => {
       if (!res.ok) throw new Error('Failed to save tenant');
       const savedTenant = await res.json();
 
-      // Map building, floor, room names immediately
       const mappedTenant = {
         ...savedTenant,
         building: { name: buildings.find(b => b.id === parseInt(savedTenant.building_id))?.name || '' },
@@ -268,6 +281,113 @@ const Tenants = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const filteredTenants = tenants.filter(t =>
+    (!filterName || t.name === filterName) &&
+    (!filterRoom || t.room?.room_number === filterRoom) &&
+    (!filterBuilding || t.building_id === parseInt(filterBuilding))
+  );
+
+  // Shared print styles
+const printStyles = `
+<style>
+  body { font-family: Arial, sans-serif; margin:0; padding:0; }
+  .page { page-break-after: always; display:flex; justify-content:center; align-items:center; height:100vh; }
+  .page-border { border:2px solid #000; width:95%; height:95%; box-sizing:border-box; padding:30px; display:flex; flex-direction:column; }
+  .invoice { width:100%; height:100%; display:flex; flex-direction:column; }
+  .header { display:flex; align-items:center; gap:20px; margin-bottom:40px; }
+  .logo { max-width:120px; }
+  h2 { font-size:28px; margin:0; }
+  table { width:100%; border-collapse:collapse; font-size:24px; flex-grow:1; }
+  th, td { border:1px solid #000; padding:20px; text-align:left; vertical-align:middle; }
+  th { width:30%; background:#f2f2f2; font-weight:bold; }
+  td { width:70%; }
+  .full-page { width:100%; page-break-after:always; display:flex; justify-content:center; align-items:center; height:100vh; }
+  .full-page img, .full-page embed { width:95%; max-height:95vh; object-fit:contain; border:2px solid #000; padding:10px; box-sizing:border-box; }
+</style>
+`;
+
+// Generate HTML for a single tenant
+const generateTenantHTML = tenant => {
+  const filesHtml = tenant.documents
+    ? tenant.documents
+        .map(
+          f => `
+    <div class="full-page">
+      ${
+        f.url.match(/\.(jpg|jpeg|png|gif)$/i)
+          ? `<img src="${BASE_URL}${f.url}" />`
+          : `<embed src="${BASE_URL}${f.url}" type="application/pdf" />`
+      }
+    </div>
+  `
+        )
+        .join('')
+    : '';
+
+  return `
+  <div class="page">
+    <div class="page-border">
+      <div class="invoice">
+        <div class="header">
+          <img src="${window.location.origin}/SettyRents.png" class="logo" />
+          <h2>Tenant Details</h2>
+        </div>
+        <table>
+          <tr><th>Name</th><td>${tenant.name}</td></tr>
+          <tr><th>Phone</th><td>${tenant.phone}</td></tr>
+          <tr><th>Building</th><td>${tenant.building?.name || ''}</td></tr>
+          <tr><th>Floor</th><td>${tenant.floor?.floor_number || ''}</td></tr>
+          <tr><th>Room</th><td>${tenant.room?.room_number || ''}</td></tr>
+          <tr><th>Advance</th><td>${tenant.advance}</td></tr>
+          <tr><th>Joining Date</th><td>${tenant.join_date}</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  ${filesHtml}
+`;
+};
+
+// Print all filtered tenants with building check
+const printAllTenants = (filteredTenants, selectedBuilding) => {
+  // Check if building is selected
+  if (!selectedBuilding || !selectedBuilding.trim()) {
+    alert('Building is mandatory to print filtered tenants');
+    return;
+  }
+
+  if (!filteredTenants || !filteredTenants.length) {
+    alert('No tenants to print.');
+    return;
+  }
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Popup blocked! Allow popups.');
+    return;
+  }
+
+  const content = filteredTenants.map(generateTenantHTML).join('');
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>All Tenants</title>
+        ${printStyles}
+      </head>
+      <body>
+        ${content}
+        <script>
+          setTimeout(() => { window.print(); window.close(); }, 300);
+        </script>
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+};
+
   return (
     <Layout>
       <div className="tenant-container">
@@ -311,6 +431,37 @@ const Tenants = () => {
           {editingId && <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>}
         </form>
 
+        {/* Filter Section */}
+        <h2>Filter Tenants</h2>
+        <div className='filter-box'>
+          <select value={filterName} onChange={e => setFilterName(e.target.value)}>
+            <option value=''>All Tenants</option>
+            {[...new Set(tenants.map(t => t.name))].map((name, i) => (
+              <option key={i} value={name}>{name}</option>
+            ))}
+          </select>
+
+          <select value={filterRoom} onChange={e => setFilterRoom(e.target.value)}>
+            <option value=''>All Rooms</option>
+            {rooms.map(r => (
+              <option key={r.id} value={r.roomNumber}>{r.roomNumber}</option>
+            ))}
+          </select>
+
+          <select value={filterBuilding} onChange={e => setFilterBuilding(e.target.value)}>
+            <option value=''>All Buildings</option>
+            {buildings.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+
+          <button
+  onClick={() => printAllTenants(filteredTenants, filterBuilding)}
+>
+  Print Filtered
+</button>
+        </div>
+
         <h2>Tenants List</h2>
         <div className="table-container">
           <table>
@@ -328,7 +479,7 @@ const Tenants = () => {
               </tr>
             </thead>
             <tbody>
-              {tenants.map(t => (
+              {filteredTenants.map(t => (
                 <tr key={t.id}>
                   <td>{t.name}</td>
                   <td>{t.phone}</td>
