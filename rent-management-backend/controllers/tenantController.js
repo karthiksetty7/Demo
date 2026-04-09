@@ -32,9 +32,13 @@ export const getTenants = async (req, res) => {
     res.json(tenants);
 
   } catch (error) {
-    console.error("GET TENANTS ERROR:", error);
-    res.status(500).json({ message: "Error fetching tenants" });
-  }
+  console.error("GET TENANTS ERROR:", error);
+  res.status(500).json({
+    message: "Error fetching tenants",
+    error: error.message,
+    stack: error.stack
+  });
+}
 };
 
 // ADD
