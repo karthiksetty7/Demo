@@ -8,17 +8,15 @@ const Tenant = sequelize.define(
   'Tenant',
   {
     name: { type: DataTypes.STRING, allowNull: false },
-    phone: DataTypes.STRING,
-    advance: DataTypes.DECIMAL(10, 2),
-    join_date: DataTypes.DATE,
+    phone: { type: DataTypes.STRING, allowNull: false },
+    advance: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+    joining_date: { type: DataTypes.DATE, allowNull: false },
 
-    building_id: DataTypes.INTEGER,
-    floor_id: DataTypes.INTEGER,
-    room_id: DataTypes.INTEGER,
+    building_id: { type: DataTypes.INTEGER, allowNull: false },
+    floor_id: { type: DataTypes.INTEGER, allowNull: false },
+    room_id: { type: DataTypes.INTEGER, allowNull: false },
 
-    documents: {
-      type: DataTypes.JSON, // store filenames array
-    },
+    files: { type: DataTypes.JSON, defaultValue: [] }, // store uploaded image info
   },
   {
     tableName: 'Tenants',
