@@ -10,15 +10,29 @@ export const getTenants = async (req, res) => {
   try {
     const [rows] = await db.query("SELECT * FROM Tenants");
 
-    const tenants = rows.map(t => ({
-      ...t,
-      documents: t.documents ? JSON.parse(t.documents) : []
-    }));
+    const tenants = rows.map(t => {
+      let docs = [];
+
+      try {
+        if (t.documents) {
+          docs = typeof t.documents === "string"
+            ? JSON.parse(t.documents)
+            : t.documents;
+        }
+      } catch (e) {
+        docs = [];
+      }
+
+      return {
+        ...t,
+        documents: docs
+      };
+    });
 
     res.json(tenants);
 
   } catch (error) {
-    console.error(error);
+    console.error("GET TENANTS ERROR:", error);
     res.status(500).json({ message: "Error fetching tenants" });
   }
 };
@@ -36,17 +50,6 @@ export const addTenant = async (req, res) => {
       advance
     } = req.body;
 
-    // insert tenant first
-    const [result] = await db.query(
-      `INSERT INTO Tenants 
-      (building_id, floor_id, room_id, name, phone, join_date, advance)
-      VALUES (?,?,?,?,?,?,?)`,
-      [building_id, floor_id, room_id, name, phone, join_date, advance]
-    );
-
-    const tenantId = result.insertId;
-
-    // collect file paths
     let documents = [];
     if (req.files && req.files.length > 0) {
       documents = req.files.map(
@@ -54,20 +57,30 @@ export const addTenant = async (req, res) => {
       );
     }
 
-    // store in DB
-    await db.query(
-      "UPDATE Tenants SET documents=? WHERE id=?",
-      [JSON.stringify(documents), tenantId]
+    const [result] = await db.query(
+      `INSERT INTO Tenants 
+      (building_id, floor_id, room_id, name, phone, join_date, advance, documents)
+      VALUES (?,?,?,?,?,?,?,?)`,
+      [
+        building_id,
+        floor_id,
+        room_id,
+        name,
+        phone,
+        join_date,
+        advance,
+        JSON.stringify(documents)
+      ]
     );
 
     res.json({
-      id: tenantId,
+      id: result.insertId,
       ...req.body,
       documents
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("ADD TENANT ERROR:", error);
     res.status(500).json({ message: "Error adding tenant" });
   }
 };
