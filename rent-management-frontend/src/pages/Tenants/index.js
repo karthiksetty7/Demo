@@ -1,158 +1,298 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import './index.css';
 
-// ✅ Updated Railway backend URL
 const BASE_URL = 'https://demo-production-bf0f.up.railway.app/api';
 
 const Tenants = () => {
+  const [buildings, setBuildings] = useState([]);
+  const [floors, setFloors] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [tenants, setTenants] = useState([]);
+
   const [buildingId, setBuildingId] = useState('');
   const [floorId, setFloorId] = useState('');
   const [roomId, setRoomId] = useState('');
-
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [advance, setAdvance] = useState('');
   const [joiningDate, setJoiningDate] = useState('');
   const [files, setFiles] = useState([]);
-
-  const [tenants, setTenants] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
   const fileInputRef = useRef(null);
 
-  // Fetch tenants from Railway backend
-  const loadTenants = async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/tenants/getTenants`);
-      const data = await res.json();
-      setTenants(data);
-    } catch (err) {
-      console.error('Failed to load tenants', err);
-    }
-  };
+  // Fetch Buildings
+  useEffect(() => {
+    const fetchBuildings = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/buildings/getBuildings`);
+        const data = await res.json();
+        setBuildings(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchBuildings();
+  }, []);
 
-  useEffect(() => { loadTenants(); }, []);
+  // Fetch Floors
+  useEffect(() => {
+    const fetchFloors = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/floors/getFloors`);
+        const data = await res.json();
+        setFloors(
+          (Array.isArray(data) ? data : []).map(f => ({
+            id: f.id,
+            buildingId: f.building_id,
+            floorName: f.floor_number,
+          }))
+        );
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchFloors();
+  }, []);
 
+  // Fetch Rooms
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/rooms/getRooms`);
+        const data = await res.json();
+        setRooms(
+          (Array.isArray(data) ? data : []).map(r => ({
+            id: r.id,
+            buildingId: r.building_id,
+            floorId: r.floor_id,
+            roomNumber: r.room_number,
+          }))
+        );
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchRooms();
+  }, []);
+
+  // Fetch Tenants
+  useEffect(() => {
+    const loadTenants = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/tenants/getTenants`);
+        const data = await res.json();
+        setTenants(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadTenants();
+  }, []);
+
+  // Filter floors and rooms based on selection
+  const filteredFloors = floors.filter(f => f.buildingId === Number(buildingId));
+  const filteredRooms = rooms.filter(
+    r => r.buildingId === Number(buildingId) && r.floorId === Number(floorId)
+  );
+
+  // Handle file input (only images)
   const handleFileChange = e => {
-    const selected = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
-    setFiles(selected);
+    const selectedFiles = Array.from(e.target.files);
+    const validFiles = selectedFiles.filter(f => {
+      if (!['image/png', 'image/jpeg', 'image/jpg'].includes(f.type)) {
+        alert(`File "${f.name}" is not an image. Only PNG/JPG/JPEG allowed.`);
+        return false;
+      }
+      return true;
+    });
+    setFiles(validFiles);
   };
 
-  const validateForm = () => {
-    if (!/^[a-zA-Z\s]+$/.test(name)) { alert('Tenant name must be letters'); return false; }
-    if (!/^\d+$/.test(phone)) { alert('Phone must be numbers'); return false; }
-    if (!buildingId || !floorId || !roomId) { alert('Select building/floor/room'); return false; }
+  // Validate inputs
+  const validate = () => {
+    if (!/^[a-zA-Z\s]+$/.test(name)) {
+      alert('Tenant name must contain only letters and spaces');
+      return false;
+    }
+    if (!/^\d+$/.test(phone)) {
+      alert('Phone number must contain only digits');
+      return false;
+    }
     return true;
   };
 
+  // Submit tenant
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validate()) return;
+    if (!buildingId || !floorId || !roomId || !name || !phone || !advance || !joiningDate) return;
 
     const formData = new FormData();
     formData.append('name', name);
     formData.append('phone', phone);
     formData.append('advance', advance);
-    formData.append('joining_date', joiningDate);
-    formData.append('building_id', buildingId);
-    formData.append('floor_id', floorId);
-    formData.append('room_id', roomId);
+    formData.append('joiningDate', joiningDate);
+    formData.append('buildingId', buildingId);
+    formData.append('floorId', floorId);
+    formData.append('roomId', roomId);
     files.forEach(f => formData.append('files', f));
 
-    const url = editingId
-      ? `${BASE_URL}/tenants/updateTenant/${editingId}`
-      : `${BASE_URL}/tenants/addTenant`;
-    const method = editingId ? 'PUT' : 'POST';
-
     try {
+      const url = editingId
+        ? `${BASE_URL}/tenants/updateTenant/${editingId}`
+        : `${BASE_URL}/tenants/addTenant`;
+      const method = editingId ? 'PUT' : 'POST';
+
       const res = await fetch(url, { method, body: formData });
-      if (!res.ok) return alert('Failed to save tenant');
-      await loadTenants();
+      if (!res.ok) throw new Error('Failed to save tenant');
+      const savedTenant = await res.json();
+
+      setTenants(prev => {
+        if (editingId) {
+          return prev.map(t => (t.id === editingId ? savedTenant : t));
+        }
+        return [...prev, savedTenant];
+      });
+
       handleCancel();
     } catch (err) {
-      console.error('Error saving tenant:', err);
+      console.error(err);
+      alert('Failed to save tenant');
     }
   };
 
-  const handleEdit = t => {
-    setEditingId(t.id);
-    setName(t.name);
-    setPhone(t.phone);
-    setAdvance(t.advance);
-    setJoiningDate(t.joining_date?.split('T')[0] || '');
-    setBuildingId(t.building_id);
-    setFloorId(t.floor_id);
-    setRoomId(t.room_id);
+  // Edit tenant
+  const handleEdit = tenant => {
+    setEditingId(tenant.id);
+    setName(tenant.name);
+    setPhone(tenant.phone);
+    setAdvance(tenant.advance);
+    setJoiningDate(tenant.joiningDate);
+    setBuildingId(tenant.buildingId.toString());
+    setFloorId(tenant.floorId.toString());
+    setRoomId(tenant.roomId.toString());
     setFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Delete tenant
   const handleDelete = async id => {
-    if (!window.confirm('Delete tenant?')) return;
+    if (!window.confirm('Are you sure you want to delete this tenant?')) return;
     try {
-      await fetch(`${BASE_URL}/tenants/deleteTenant/${id}`, { method: 'DELETE' });
-      loadTenants();
+      const res = await fetch(`${BASE_URL}/tenants/deleteTenant/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete tenant');
+      setTenants(prev => prev.filter(t => t.id !== id));
     } catch (err) {
-      console.error('Error deleting tenant:', err);
+      console.error(err);
+      alert('Failed to delete tenant');
     }
   };
 
+  // Cancel form
   const handleCancel = () => {
     setEditingId(null);
-    setName(''); setPhone(''); setAdvance(''); setJoiningDate('');
-    setBuildingId(''); setFloorId(''); setRoomId(''); setFiles([]);
+    setName('');
+    setPhone('');
+    setAdvance('');
+    setJoiningDate('');
+    setBuildingId('');
+    setFloorId('');
+    setRoomId('');
+    setFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
     <Layout>
-      <h2>{editingId ? 'Edit Tenant' : 'Add Tenant'}</h2>
-      <form onSubmit={handleSubmit}>
-        <input placeholder='Building ID' value={buildingId} onChange={e => setBuildingId(e.target.value)} required />
-        <input placeholder='Floor ID' value={floorId} onChange={e => setFloorId(e.target.value)} required />
-        <input placeholder='Room ID' value={roomId} onChange={e => setRoomId(e.target.value)} required />
+      <div className="tenant-container">
+        <h2>{editingId ? 'Edit Tenant' : 'Add Tenant'}</h2>
+        <form className="tenant-form" onSubmit={handleSubmit}>
+          <select
+            value={buildingId}
+            onChange={e => { setBuildingId(e.target.value); setFloorId(''); setRoomId(''); }}
+            required
+          >
+            <option value="">Select Building</option>
+            {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
 
-        <input placeholder='Name' value={name} onChange={e => setName(e.target.value)} required />
-        <input placeholder='Phone' value={phone} onChange={e => setPhone(e.target.value)} required />
-        <input placeholder='Advance' type='number' value={advance} onChange={e => setAdvance(e.target.value)} required />
-        <input type='date' value={joiningDate} onChange={e => setJoiningDate(e.target.value)} required />
-        <input type='file' multiple ref={fileInputRef} onChange={handleFileChange} />
+          <select
+            value={floorId}
+            onChange={e => { setFloorId(e.target.value); setRoomId(''); }}
+            required
+          >
+            <option value="">Select Floor</option>
+            {filteredFloors.map(f => <option key={f.id} value={f.id}>{f.floorName}</option>)}
+          </select>
 
-        <button type='submit'>{editingId ? 'Update' : 'Add'}</button>
-        {editingId && <button type='button' onClick={handleCancel}>Cancel</button>}
-      </form>
+          <select
+            value={roomId}
+            onChange={e => setRoomId(e.target.value)}
+            required
+          >
+            <option value="">Select Room</option>
+            {filteredRooms.map(r => <option key={r.id} value={r.id}>{r.roomNumber}</option>)}
+          </select>
 
-      <h2>Tenants List</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th><th>Phone</th><th>Building</th><th>Floor</th><th>Room</th><th>Advance</th><th>Joining</th><th>Images</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tenants.map(t => (
-            <tr key={t.id}>
-              <td>{t.name}</td>
-              <td>{t.phone}</td>
-              <td>{t.building?.name || t.building_id}</td>
-              <td>{t.floor?.floor_number || t.floor_id}</td>
-              <td>{t.room?.room_number || t.room_id}</td>
-              <td>{t.advance}</td>
-              <td>{t.joining_date?.split('T')[0]}</td>
-              <td>
-                {t.files?.map((f, i) => (
-                  <a key={i} href={`https://demo-production-bf0f.up.railway.app${f.url}`} target='_blank' rel='noreferrer'>View</a>
-                ))}
-              </td>
-              <td>
-                <button onClick={() => handleEdit(t)}>Edit</button>
-                <button onClick={() => handleDelete(t.id)}>Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <input type="text" placeholder="Tenant Name" value={name} onChange={e => setName(e.target.value)} required />
+          <input type="text" placeholder="Phone" value={phone} onChange={e => setPhone(e.target.value)} required />
+          <input type="number" placeholder="Advance" value={advance} onChange={e => setAdvance(e.target.value)} required />
+          <input type="date" value={joiningDate} onChange={e => setJoiningDate(e.target.value)} required />
+
+          <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} />
+
+          <button type="submit">{editingId ? 'Update Tenant' : 'Add Tenant'}</button>
+          {editingId && <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>}
+        </form>
+
+        <h2>Tenants List</h2>
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Building</th>
+                <th>Floor</th>
+                <th>Room</th>
+                <th>Advance</th>
+                <th>Joining</th>
+                <th>Document</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tenants.map(t => {
+                const filesData = t.files ? JSON.parse(t.files) : [];
+                return (
+                  <tr key={t.id}>
+                    <td>{t.name}</td>
+                    <td>{t.phone}</td>
+                    <td>{t.buildingName}</td>
+                    <td>{t.floorName}</td>
+                    <td>{t.roomNumber}</td>
+                    <td>{t.advance}</td>
+                    <td>{t.joiningDate}</td>
+                    <td>
+                      {filesData.map((f, i) => (
+                        <a key={i} href={`${BASE_URL}/uploads/tenants/${f.filename}`} target="_blank" rel="noreferrer noopener">
+                          View
+                        </a>
+                      ))}
+                    </td>
+                    <td>
+                      <button className="edit-btn" onClick={() => handleEdit(t)}>Edit</button>
+                      <button className="delete-btn" onClick={() => handleDelete(t.id)}>Delete</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </Layout>
   );
 };
