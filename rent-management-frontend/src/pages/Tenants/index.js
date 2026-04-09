@@ -520,4 +520,4 @@ const printAllTenants = (filteredTenants, selectedBuilding) => {
   );
 };
 
-export default Tenants;
+export default Tenants; 
