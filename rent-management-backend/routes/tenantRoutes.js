@@ -12,26 +12,23 @@ import {
 
 const router = express.Router();
 
+const uploadPath = path.join(process.cwd(), 'uploads/tenants');
 
-// Ensure upload folder exists (Railway fix)
-if (!fs.existsSync('uploads/tenants')) {
-  fs.mkdirSync('uploads/tenants', { recursive: true });
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
 }
 
-
-// Multer setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/tenants');
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const uniqueName =
+    const unique =
       Date.now() + '-' + Math.round(Math.random() * 1e9) + ext;
-    cb(null, uniqueName);
+    cb(null, unique);
   }
 });
-
 
 const fileFilter = (req, file, cb) => {
   if (
@@ -41,11 +38,8 @@ const fileFilter = (req, file, cb) => {
   else cb(null, false);
 };
 
-
 const upload = multer({ storage, fileFilter });
 
-
-// Routes
 router.get('/getTenants', getTenants);
 router.post('/addTenant', upload.array('files', 5), addTenant);
 router.put('/updateTenant/:id', upload.array('files', 5), updateTenant);
