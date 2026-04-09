@@ -2,6 +2,8 @@ import Tenant from '../models/Tenant.js';
 import Building from '../models/Building.js';
 import Floor from '../models/Floor.js';
 import Room from '../models/Room.js';
+import fs from 'fs';
+import path from 'path';
 
 // GET
 export const getTenants = async (req, res) => {
@@ -16,6 +18,7 @@ export const getTenants = async (req, res) => {
     });
     res.json(tenants);
   } catch (err) {
+    console.error('Error fetching tenants:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -24,6 +27,7 @@ export const getTenants = async (req, res) => {
 export const addTenant = async (req, res) => {
   try {
     const { name, phone, advance, joining_date, building_id, floor_id, room_id } = req.body;
+
     const files = req.files?.map(f => ({ url: `/uploads/tenants/${f.filename}` })) || [];
 
     const tenant = await Tenant.create({
@@ -39,6 +43,7 @@ export const addTenant = async (req, res) => {
 
     res.json(tenant);
   } catch (err) {
+    console.error('Error adding tenant:', err);
     res.status(500).json({ message: 'Failed to add tenant' });
   }
 };
@@ -47,10 +52,12 @@ export const addTenant = async (req, res) => {
 export const updateTenant = async (req, res) => {
   try {
     const { name, phone, advance, joining_date, building_id, floor_id, room_id } = req.body;
+
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ message: 'Tenant not found' });
 
     const newFiles = req.files?.map(f => ({ url: `/uploads/tenants/${f.filename}` })) || [];
+
     tenant.name = name;
     tenant.phone = phone;
     tenant.advance = advance;
@@ -63,6 +70,7 @@ export const updateTenant = async (req, res) => {
     await tenant.save();
     res.json(tenant);
   } catch (err) {
+    console.error('Error updating tenant:', err);
     res.status(500).json({ message: 'Failed to update tenant' });
   }
 };
@@ -73,10 +81,8 @@ export const deleteTenant = async (req, res) => {
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ message: 'Tenant not found' });
 
-    // Delete files
+    // Delete files from server
     tenant.files.forEach(f => {
-      const fs = require('fs');
-      const path = require('path');
       const filePath = path.join('uploads/tenants', f.url.split('/').pop());
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     });
@@ -84,6 +90,7 @@ export const deleteTenant = async (req, res) => {
     await tenant.destroy();
     res.json({ message: 'Tenant deleted' });
   } catch (err) {
+    console.error('Error deleting tenant:', err);
     res.status(500).json({ message: 'Failed to delete tenant' });
   }
 };
