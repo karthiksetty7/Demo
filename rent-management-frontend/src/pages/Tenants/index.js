@@ -135,13 +135,11 @@ const Tenants = () => {
     fetchTenants();
   }, []);
 
-  // Filter floors and rooms based on selection
   const filteredFloors = floors.filter(f => f.buildingId === parseInt(buildingId));
   const filteredRooms = rooms.filter(
     r => r.buildingId === parseInt(buildingId) && r.floorId === parseInt(floorId)
   );
 
-  // Handle file input (only images)
   const handleFileChange = e => {
     const selectedFiles = Array.from(e.target.files);
     const validFiles = selectedFiles.filter(f => {
@@ -154,7 +152,6 @@ const Tenants = () => {
     setFiles(validFiles);
   };
 
-  // Validate inputs
   const validate = () => {
     if (!/^[a-zA-Z\s]+$/.test(name)) {
       alert('Tenant name must contain only letters and spaces');
@@ -167,7 +164,6 @@ const Tenants = () => {
     return true;
   };
 
-  // Submit tenant
   const handleSubmit = async e => {
     e.preventDefault();
     if (!validate()) return;
@@ -177,10 +173,10 @@ const Tenants = () => {
     formData.append('name', name);
     formData.append('phone', phone);
     formData.append('advance', advance);
-    formData.append('joiningDate', joiningDate);
-    formData.append('buildingId', buildingId);
-    formData.append('floorId', floorId);
-    formData.append('roomId', roomId);
+    formData.append('joining_date', joiningDate); // ✅ backend key
+    formData.append('building_id', buildingId);   // ✅ backend key
+    formData.append('floor_id', floorId);         // ✅ backend key
+    formData.append('room_id', roomId);           // ✅ backend key
     files.forEach(f => formData.append('files', f));
 
     try {
@@ -210,21 +206,19 @@ const Tenants = () => {
     }
   };
 
-  // Edit tenant
   const handleEdit = tenant => {
     setEditingId(tenant.id);
     setName(tenant.name);
     setPhone(tenant.phone);
     setAdvance(tenant.advance);
-    setJoiningDate(tenant.joiningDate);
-    setBuildingId(tenant.buildingId.toString());
-    setFloorId(tenant.floorId.toString());
-    setRoomId(tenant.roomId.toString());
+    setJoiningDate(tenant.joining_date); // ✅ match backend
+    setBuildingId(tenant.building_id.toString());
+    setFloorId(tenant.floor_id.toString());
+    setRoomId(tenant.room_id.toString());
     setFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Delete tenant
   const handleDelete = async id => {
     if (!window.confirm('Are you sure you want to delete this tenant?')) return;
     try {
@@ -240,7 +234,6 @@ const Tenants = () => {
     }
   };
 
-  // Cancel form
   const handleCancel = () => {
     setEditingId(null);
     setName('');
@@ -315,21 +308,19 @@ const Tenants = () => {
             </thead>
             <tbody>
               {tenants.map(t => {
-                const filesData = t.files ? JSON.parse(t.files) : [];
+                const filesData = t.files || [];
                 return (
                   <tr key={t.id}>
                     <td>{t.name}</td>
                     <td>{t.phone}</td>
-                    <td>{t.buildingName}</td>
-                    <td>{t.floorName}</td>
-                    <td>{t.roomNumber}</td>
+                    <td>{t.building?.name}</td>
+                    <td>{t.floor?.floor_number}</td>
+                    <td>{t.room?.room_number}</td>
                     <td>{t.advance}</td>
-                    <td>{t.joiningDate}</td>
+                    <td>{t.joining_date}</td>
                     <td>
                       {filesData.map((f, i) => (
-                        <a key={i} href={`${BASE_URL}/uploads/tenants/${f.filename}`} target="_blank" rel="noreferrer noopener">
-                          View
-                        </a>
+                        <a key={i} href={`${BASE_URL}${f.url}`} target="_blank" rel="noreferrer noopener">View</a>
                       ))}
                     </td>
                     <td>
