@@ -13,16 +13,20 @@ import fs from 'fs';
 dotenv.config();
 const app = express();
 
-// Ensure uploads folder exists
-const uploadDirs = ['uploads/tenants'];
-uploadDirs.forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
 
-// CORS config
+// SAFE Railway upload path
+const uploadsPath = path.join(process.cwd(), 'uploads');
+const tenantsPath = path.join(uploadsPath, 'tenants');
+
+if (!fs.existsSync(tenantsPath)) {
+  fs.mkdirSync(tenantsPath, { recursive: true });
+}
+
+
+// CORS
 app.use(cors({
-  origin: ["http://localhost:3000"], 
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
+  origin: ["http://localhost:3000"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
@@ -30,7 +34,7 @@ app.use(express.json());
 
 
 // Static uploads
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(uploadsPath));
 
 
 // Routes
@@ -41,13 +45,19 @@ app.use('/api/floors', floorRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/tenants', tenantRoutes);
 
+
 // Start Server
 const startServer = async () => {
   try {
     await connectDB();
-    await sequelize.sync({ alter: true }); // ✅ sync DB with models
+    await sequelize.sync({ alter: true });
+
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on port ${PORT}`));
+
+    app.listen(PORT, '0.0.0.0', () =>
+      console.log(`🚀 Server running on port ${PORT}`)
+    );
+
   } catch (err) {
     console.error('❌ Server failed:', err);
   }
