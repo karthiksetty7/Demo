@@ -163,9 +163,7 @@ const Tenants = () => {
         'application/pdf'
       ].includes(f.type)
     ) {
-      alert(
-        `File "${f.name}" is not allowed. Only PNG, JPG, JPEG, PDF allowed.`
-      );
+      alert(`Invalid file: ${f.name}`);
       return false;
     }
     return true;
@@ -308,6 +306,16 @@ const printStyles = `
 
 // Generate HTML for a single tenant
 const generateTenantHTML = tenant => {
+
+  const buildingName =
+    buildings.find(b => b.id === tenant.building_id)?.name || '';
+
+  const floorName =
+    floors.find(f => f.id === tenant.floor_id)?.floorName || '';
+
+  const roomNumber =
+    rooms.find(r => r.id === tenant.room_id)?.roomNumber || '';
+
   const filesHtml = tenant.documents
     ? tenant.documents
         .map(
@@ -335,9 +343,9 @@ const generateTenantHTML = tenant => {
         <table>
           <tr><th>Name</th><td>${tenant.name}</td></tr>
           <tr><th>Phone</th><td>${tenant.phone}</td></tr>
-          <tr><th>Building</th><td>${tenant.building?.name || ''}</td></tr>
-          <tr><th>Floor</th><td>${tenant.floor?.floor_number || ''}</td></tr>
-          <tr><th>Room</th><td>${tenant.room?.room_number || ''}</td></tr>
+          <tr><th>Building</th><td>${buildingName}</td></tr>
+          <tr><th>Floor</th><td>${floorName}</td></tr>
+          <tr><th>Room</th><td>${roomNumber}</td></tr>
           <tr><th>Advance</th><td>${tenant.advance}</td></tr>
           <tr><th>Joining Date</th><td>${tenant.join_date}</td></tr>
         </table>
