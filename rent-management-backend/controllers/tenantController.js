@@ -2,7 +2,8 @@ import Tenant from '../models/Tenant.js';
 import fs from 'fs';
 import path from 'path';
 
-// GET
+
+// GET TENANTS
 export const getTenants = async (req, res) => {
   try {
     const tenants = await Tenant.findAll({
@@ -10,6 +11,7 @@ export const getTenants = async (req, res) => {
     });
 
     res.json(tenants);
+
   } catch (error) {
     console.error("GET TENANTS ERROR:", error);
     res.status(500).json({
@@ -19,7 +21,8 @@ export const getTenants = async (req, res) => {
   }
 };
 
-// ADD
+
+// ADD TENANT
 export const addTenant = async (req, res) => {
   try {
     const documents = req.files?.map(
@@ -32,6 +35,7 @@ export const addTenant = async (req, res) => {
     });
 
     res.json(tenant);
+
   } catch (error) {
     console.error("ADD TENANT ERROR:", error);
     res.status(500).json({
@@ -41,11 +45,15 @@ export const addTenant = async (req, res) => {
   }
 };
 
-// UPDATE
+
+// UPDATE TENANT
 export const updateTenant = async (req, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
-    if (!tenant) return res.status(404).json({ message: 'Tenant not found' });
+
+    if (!tenant) {
+      return res.status(404).json({ message: 'Tenant not found' });
+    }
 
     const newDocuments = req.files?.map(
       f => ({ url: `/uploads/tenants/${f.filename}` })
@@ -57,25 +65,38 @@ export const updateTenant = async (req, res) => {
     });
 
     res.json(tenant);
+
   } catch (err) {
     console.error('Error updating tenant:', err);
     res.status(500).json({ message: 'Failed to update tenant' });
   }
 };
 
-// DELETE
+
+// DELETE TENANT
 export const deleteTenant = async (req, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
-    if (!tenant) return res.status(404).json({ message: 'Tenant not found' });
+
+    if (!tenant) {
+      return res.status(404).json({ message: 'Tenant not found' });
+    }
 
     tenant.documents?.forEach(f => {
-      const filePath = path.join('uploads/tenants', f.url.split('/').pop());
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      const filePath = path.join(
+        'uploads/tenants',
+        f.url.split('/').pop()
+      );
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     });
 
     await tenant.destroy();
+
     res.json({ message: 'Tenant deleted' });
+
   } catch (err) {
     console.error('Error deleting tenant:', err);
     res.status(500).json({ message: 'Failed to delete tenant' });
