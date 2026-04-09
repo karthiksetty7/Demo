@@ -5,6 +5,7 @@ import authRoutes from './routes/authRoutes.js';
 import buildingRoutes from './routes/buildingRoutes.js';
 import floorRoutes from './routes/floorRoutes.js';
 import roomRoutes from './routes/roomRoutes.js';
+import tenantRoutes from './routes/tenantRoutes.js';
 import { connectDB, sequelize } from './config/db.js';
 
 dotenv.config();
@@ -25,6 +26,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/buildings', buildingRoutes);
 app.use('/api/floors', floorRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/uploads', express.static('uploads'));
+app.use('/api/tenants', tenantRoutes);
+
 
 const startServer = async () => {
   try {
