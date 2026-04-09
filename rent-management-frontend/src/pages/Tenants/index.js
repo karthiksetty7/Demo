@@ -3,6 +3,7 @@ import Layout from '../../components/Layout';
 import './index.css';
 
 const BASE_URL = 'https://demo-production-bf0f.up.railway.app/api';
+const FILE_BASE_URL = 'https://demo-production-bf0f.up.railway.app';
 
 const Tenants = () => {
   const [buildings, setBuildings] = useState([]);
@@ -323,8 +324,8 @@ const generateTenantHTML = tenant => {
     <div class="full-page">
       ${
         f.url.match(/\.(jpg|jpeg|png|gif)$/i)
-          ? `<img src="${BASE_URL}${f.url}" />`
-          : `<embed src="${BASE_URL}${f.url}" type="application/pdf" />`
+          ? `<img src="${FILE_BASE_URL}${f.url}" />`
+          : `<embed src="${FILE_BASE_URL}${f.url}" type="application/pdf" />`
       }
     </div>
   `
@@ -498,7 +499,7 @@ const printAllTenants = (filteredTenants, selectedBuilding) => {
                   <td>{t.join_date}</td>
                   <td>
                     {t.documents?.map((f, i) => (
-                      <a key={i} href={`${BASE_URL}${f.url}`} target="_blank" rel="noreferrer noopener">View</a>
+                      <a key={i} href={`${FILE_BASE_URL}${f.url}`} target="_blank" rel="noreferrer noopener">View</a>
                     ))}
                   </td>
                   <td>
