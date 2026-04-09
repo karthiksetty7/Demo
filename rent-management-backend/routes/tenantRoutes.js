@@ -1,27 +1,30 @@
 import express from 'express';
 import multer from 'multer';
-import {
-  getTenants,
-  addTenant,
-  updateTenant,
-  deleteTenant,
-} from '../controllers/tenantController.js';
+import { addTenant, updateTenant, getTenants, deleteTenant } from '../controllers/tenantController.js';
 
 const router = express.Router();
 
-// multer config
+// Multer setup
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/tenants');
+  },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
-  },
+  }
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only images allowed!'), false);
+    cb(null, true);
+  }
+});
 
+router.post('/addTenant', upload.array('files', 10), addTenant);
+router.put('/updateTenant/:id', upload.array('files', 10), updateTenant);
 router.get('/getTenants', getTenants);
-router.post('/addTenant', upload.array('files'), addTenant);
-router.put('/updateTenant/:id', upload.array('files'), updateTenant);
 router.delete('/deleteTenant/:id', deleteTenant);
 
 export default router;
