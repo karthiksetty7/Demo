@@ -8,43 +8,67 @@ import path from 'path';
 // GET
 export const getTenants = async (req, res) => {
   try {
-    const tenants = await Tenant.findAll({
-      include: [
-        { model: Building, as: 'building', attributes: ['name'] },
-        { model: Floor, as: 'floor', attributes: ['floor_number'] },
-        { model: Room, as: 'room', attributes: ['room_number'] },
-      ],
-      order: [['id', 'DESC']],
-    });
+    const [rows] = await db.query("SELECT * FROM Tenants");
+
+    const tenants = rows.map(t => ({
+      ...t,
+      documents: t.documents ? JSON.parse(t.documents) : []
+    }));
+
     res.json(tenants);
-  } catch (err) {
-    console.error('Error fetching tenants:', err);
-    res.status(500).json({ message: 'Failed to fetch tenants' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching tenants" });
   }
 };
 
 // ADD
 export const addTenant = async (req, res) => {
   try {
-    const { name, phone, advance, join_date, building_id, floor_id, room_id } = req.body;
-
-    const documents = req.files?.map(f => ({ url: `/uploads/tenants/${f.filename}` })) || [];
-
-    const tenant = await Tenant.create({
-      name,
-      phone,
-      advance,
-      join_date,
+    const {
       building_id,
       floor_id,
       room_id,
+      name,
+      phone,
+      join_date,
+      advance
+    } = req.body;
+
+    // insert tenant first
+    const [result] = await db.query(
+      `INSERT INTO Tenants 
+      (building_id, floor_id, room_id, name, phone, join_date, advance)
+      VALUES (?,?,?,?,?,?,?)`,
+      [building_id, floor_id, room_id, name, phone, join_date, advance]
+    );
+
+    const tenantId = result.insertId;
+
+    // collect file paths
+    let documents = [];
+    if (req.files && req.files.length > 0) {
+      documents = req.files.map(
+        file => `/uploads/tenants/${file.filename}`
+      );
+    }
+
+    // store in DB
+    await db.query(
+      "UPDATE Tenants SET documents=? WHERE id=?",
+      [JSON.stringify(documents), tenantId]
+    );
+
+    res.json({
+      id: tenantId,
+      ...req.body,
       documents
     });
 
-    res.json(tenant);
-  } catch (err) {
-    console.error('Error adding tenant:', err);
-    res.status(500).json({ message: 'Failed to add tenant' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error adding tenant" });
   }
 };
 
