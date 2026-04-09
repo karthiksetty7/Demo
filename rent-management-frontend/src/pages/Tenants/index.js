@@ -308,14 +308,9 @@ const printStyles = `
 // Generate HTML for a single tenant
 const generateTenantHTML = tenant => {
 
-  const buildingName =
-    buildings.find(b => b.id === tenant.building_id)?.name || '';
-
-  const floorName =
-    floors.find(f => f.id === tenant.floor_id)?.floorName || '';
-
-  const roomNumber =
-    rooms.find(r => r.id === tenant.room_id)?.roomNumber || '';
+  const buildingName = tenant.building?.name || '';
+  const floorName = tenant.floor?.floor_number || '';
+  const roomNumber = tenant.room?.room_number || '';
 
   const filesHtml = tenant.documents
     ? tenant.documents
