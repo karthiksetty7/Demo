@@ -44,7 +44,6 @@ const Tenants = () => {
         setBuildings(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Failed to fetch buildings:', err);
-        setBuildings([]);
       }
     };
     fetchBuildings();
@@ -74,7 +73,6 @@ const Tenants = () => {
         );
       } catch (err) {
         console.error('Failed to fetch floors:', err);
-        setFloors([]);
       }
     };
     fetchFloors();
@@ -105,27 +103,37 @@ const Tenants = () => {
         );
       } catch (err) {
         console.error('Failed to fetch rooms:', err);
-        setRooms([]);
       }
     };
     fetchRooms();
   }, []);
 
-  // Load tenants from localStorage (or you can fetch from backend)
+  // Fetch tenants from backend
   useEffect(() => {
-    const stored = localStorage.getItem('tenants');
-    if (stored) setTenants(JSON.parse(stored));
+    const fetchTenants = async () => {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${BASE_URL}/tenants/getTenants`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          alert('Session expired. Please login again.');
+          localStorage.removeItem('token');
+          return;
+        }
+        const data = await res.json();
+        setTenants(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to fetch tenants:', err);
+      }
+    };
+    fetchTenants();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('tenants', JSON.stringify(tenants));
-  }, [tenants]);
-
-  // Filtered floors/rooms based on selection
+  // Filtered floors and rooms
   const filteredFloors = floors.filter(f => f.buildingId === Number(buildingId));
-  const filteredRooms = rooms.filter(
-    r => r.buildingId === Number(buildingId) && r.floorId === Number(floorId)
-  );
+  const filteredRooms = rooms.filter(r => r.buildingId === Number(buildingId) && r.floorId === Number(floorId));
 
   // File handler: only images allowed
   const handleFileChange = e => {
@@ -140,57 +148,55 @@ const Tenants = () => {
     setFiles(validFiles);
   };
 
-  // Submit tenant
-  const handleSubmit = e => {
+  // Add/Edit tenant
+  const handleSubmit = async e => {
     e.preventDefault();
     if (!buildingId || !floorId || !roomId || !name || !phone || !advance || !joiningDate) return;
 
-    const building = buildings.find(b => b.id === Number(buildingId));
-    const floor = floors.find(f => f.id === Number(floorId));
-    const room = rooms.find(r => r.id === Number(roomId));
-
-    const filesData = files.map(f => ({
-      url: URL.createObjectURL(f),
-      type: f.type,
-    }));
-
-    if (editingId) {
-      setTenants(prev =>
-        prev.map(t =>
-          t.id === editingId
-            ? {
-                ...t,
-                name,
-                phone,
-                advance,
-                joiningDate,
-                building: building?.name,
-                floor: floor?.floorName,
-                room: room?.roomNumber,
-                files: filesData.length ? filesData : t.files,
-              }
-            : t
-        )
-      );
-      setEditingId(null);
-    } else {
-      setTenants(prev => [
-        ...prev,
-        {
-          id: Date.now(),
-          name,
-          phone,
-          advance,
-          joiningDate,
-          building: building?.name,
-          floor: floor?.floorName,
-          room: room?.roomNumber,
-          files: filesData,
-        },
-      ]);
+    const token = getToken();
+    if (!token) {
+      alert('Please login.');
+      return;
     }
 
-    handleCancel();
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('phone', phone);
+    formData.append('advance', advance);
+    formData.append('joiningDate', joiningDate);
+    formData.append('building_id', buildingId);
+    formData.append('floor_id', floorId);
+    formData.append('room_id', roomId);
+    files.forEach(f => formData.append('files', f));
+
+    try {
+      let res, data;
+      if (editingId) {
+        res = await fetch(`${BASE_URL}/tenants/updateTenant/${editingId}`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        data = await res.json();
+        setTenants(prev =>
+          prev.map(t => (t.id === editingId ? data.tenant : t))
+        );
+        setEditingId(null);
+      } else {
+        res = await fetch(`${BASE_URL}/tenants/addTenant`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        data = await res.json();
+        setTenants(prev => [...prev, data.tenant]);
+      }
+
+      handleCancel();
+    } catch (err) {
+      console.error('Failed to save tenant:', err);
+      alert('Failed to save tenant. Check console for details.');
+    }
   };
 
   // Edit tenant
@@ -201,13 +207,13 @@ const Tenants = () => {
     setAdvance(tenant.advance);
     setJoiningDate(tenant.joiningDate);
 
-    const buildingObj = buildings.find(b => b.name === tenant.building);
+    const buildingObj = buildings.find(b => b.id === tenant.building_id);
     setBuildingId(buildingObj?.id || '');
 
-    const floorObj = floors.find(f => f.floorName === tenant.floor && f.buildingId === buildingObj?.id);
+    const floorObj = floors.find(f => f.id === tenant.floor_id && f.buildingId === buildingObj?.id);
     setFloorId(floorObj?.id || '');
 
-    const roomObj = rooms.find(r => r.roomNumber === tenant.room && r.buildingId === buildingObj?.id && r.floorId === floorObj?.id);
+    const roomObj = rooms.find(r => r.id === tenant.room_id && r.buildingId === buildingObj?.id && r.floorId === floorObj?.id);
     setRoomId(roomObj?.id || '');
 
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -215,9 +221,25 @@ const Tenants = () => {
   };
 
   // Delete tenant
-  const handleDelete = id => {
-    if (window.confirm('Are you sure you want to delete this tenant?')) {
+  const handleDelete = async id => {
+    const token = getToken();
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to delete this tenant?')) return;
+
+    try {
+      const res = await fetch(`${BASE_URL}/tenants/deleteTenant/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        alert('Token invalid. Please login again.');
+        localStorage.removeItem('token');
+        return;
+      }
       setTenants(prev => prev.filter(t => t.id !== id));
+    } catch (err) {
+      console.error('Failed to delete tenant:', err);
+      alert('Failed to delete tenant. Check console for details.');
     }
   };
 
@@ -242,11 +264,7 @@ const Tenants = () => {
         <form className='tenant-form' onSubmit={handleSubmit}>
           <select
             value={buildingId}
-            onChange={e => {
-              setBuildingId(e.target.value);
-              setFloorId('');
-              setRoomId('');
-            }}
+            onChange={e => { setBuildingId(e.target.value); setFloorId(''); setRoomId(''); }}
             required
           >
             <option value=''>Select Building</option>
@@ -255,10 +273,7 @@ const Tenants = () => {
 
           <select
             value={floorId}
-            onChange={e => {
-              setFloorId(e.target.value);
-              setRoomId('');
-            }}
+            onChange={e => { setFloorId(e.target.value); setRoomId(''); }}
             required
           >
             <option value=''>Select Floor</option>
@@ -298,9 +313,9 @@ const Tenants = () => {
                 <tr key={t.id}>
                   <td>{t.name}</td>
                   <td>{t.phone}</td>
-                  <td>{t.building}</td>
-                  <td>{t.floor}</td>
-                  <td>{t.room}</td>
+                  <td>{t.building_name || t.building}</td>
+                  <td>{t.floor_name || t.floor}</td>
+                  <td>{t.room_number || t.room}</td>
                   <td>{t.advance}</td>
                   <td>{t.joiningDate}</td>
                   <td>
