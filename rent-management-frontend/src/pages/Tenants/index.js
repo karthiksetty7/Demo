@@ -173,11 +173,11 @@ const Tenants = () => {
     formData.append('name', name);
     formData.append('phone', phone);
     formData.append('advance', advance);
-    formData.append('joining_date', joiningDate); // ✅ backend key
-    formData.append('building_id', buildingId);   // ✅ backend key
-    formData.append('floor_id', floorId);         // ✅ backend key
-    formData.append('room_id', roomId);           // ✅ backend key
-    files.forEach(f => formData.append('files', f));
+    formData.append('join_date', joiningDate); // ✅ match backend
+    formData.append('building_id', buildingId);
+    formData.append('floor_id', floorId);
+    formData.append('room_id', roomId);
+    files.forEach(f => formData.append('files', f)); // backend converts to documents
 
     try {
       let res;
@@ -211,7 +211,7 @@ const Tenants = () => {
     setName(tenant.name);
     setPhone(tenant.phone);
     setAdvance(tenant.advance);
-    setJoiningDate(tenant.joining_date); // ✅ match backend
+    setJoiningDate(tenant.join_date); // ✅ match backend
     setBuildingId(tenant.building_id.toString());
     setFloorId(tenant.floor_id.toString());
     setRoomId(tenant.room_id.toString());
@@ -307,29 +307,26 @@ const Tenants = () => {
               </tr>
             </thead>
             <tbody>
-              {tenants.map(t => {
-                const filesData = t.files || [];
-                return (
-                  <tr key={t.id}>
-                    <td>{t.name}</td>
-                    <td>{t.phone}</td>
-                    <td>{t.building?.name}</td>
-                    <td>{t.floor?.floor_number}</td>
-                    <td>{t.room?.room_number}</td>
-                    <td>{t.advance}</td>
-                    <td>{t.joining_date}</td>
-                    <td>
-                      {filesData.map((f, i) => (
-                        <a key={i} href={`${BASE_URL}${f.url}`} target="_blank" rel="noreferrer noopener">View</a>
-                      ))}
-                    </td>
-                    <td>
-                      <button className="edit-btn" onClick={() => handleEdit(t)}>Edit</button>
-                      <button className="delete-btn" onClick={() => handleDelete(t.id)}>Delete</button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {tenants.map(t => (
+                <tr key={t.id}>
+                  <td>{t.name}</td>
+                  <td>{t.phone}</td>
+                  <td>{t.building?.name}</td>
+                  <td>{t.floor?.floor_number}</td>
+                  <td>{t.room?.room_number}</td>
+                  <td>{t.advance}</td>
+                  <td>{t.join_date}</td>
+                  <td>
+                    {t.documents?.map((f, i) => (
+                      <a key={i} href={`${BASE_URL}${f.url}`} target="_blank" rel="noreferrer noopener">View</a>
+                    ))}
+                  </td>
+                  <td>
+                    <button className="edit-btn" onClick={() => handleEdit(t)}>Edit</button>
+                    <button className="delete-btn" onClick={() => handleDelete(t.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
