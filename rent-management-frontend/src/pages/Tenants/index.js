@@ -280,11 +280,11 @@ const Tenants = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const filteredTenants = tenants.filter(t =>
-    (!filterName || t.name === filterName) &&
-    (!filterRoom || t.room?.room_number === filterRoom) &&
-    (!filterBuilding || t.building_id === parseInt(filterBuilding))
-  );
+ const filteredTenants = tenants.filter(t =>
+  (!filterName || t.name === filterName) &&
+  (!filterRoom || String(t.room?.room_number) === String(filterRoom)) &&
+  (!filterBuilding || String(t.building_id) === String(filterBuilding))
+);
 
   // Shared print styles
 const printStyles = `
@@ -360,8 +360,7 @@ const generateTenantHTML = tenant => {
 
 // Print all filtered tenants with building check
 const printAllTenants = (filteredTenants, selectedBuilding) => {
-  // Check if building is selected
-  if (!selectedBuilding || !selectedBuilding.trim()) {
+  if (!selectedBuilding) {
     alert('Building is mandatory to print filtered tenants');
     return;
   }
@@ -388,7 +387,12 @@ const printAllTenants = (filteredTenants, selectedBuilding) => {
       <body>
         ${content}
         <script>
-          setTimeout(() => { window.print(); window.close(); }, 300);
+          window.onload = function() {
+            setTimeout(() => {
+              window.print();
+              window.close();
+            }, 800);
+          }
         </script>
       </body>
     </html>
