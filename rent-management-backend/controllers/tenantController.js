@@ -84,9 +84,13 @@ export const addTenant = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("ADD TENANT ERROR:", error);
-    res.status(500).json({ message: "Error adding tenant" });
-  }
+  console.error("ADD TENANT ERROR:", error);
+  res.status(500).json({
+    message: "Error adding tenant",
+    error: error.message,
+    stack: error.stack
+  });
+}
 };
 
 // UPDATE
