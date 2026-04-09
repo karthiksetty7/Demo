@@ -1,118 +1,61 @@
 import Tenant from '../models/Tenant.js';
-import Building from '../models/Building.js';
-import Floor from '../models/Floor.js';
-import Room from '../models/Room.js';
 import fs from 'fs';
 import path from 'path';
 
 // GET
 export const getTenants = async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT * FROM Tenants");
-
-    const tenants = rows.map(t => {
-      let docs = [];
-
-      try {
-        if (t.documents) {
-          docs = typeof t.documents === "string"
-            ? JSON.parse(t.documents)
-            : t.documents;
-        }
-      } catch (e) {
-        docs = [];
-      }
-
-      return {
-        ...t,
-        documents: docs
-      };
+    const tenants = await Tenant.findAll({
+      include: ['building', 'floor', 'room']
     });
 
     res.json(tenants);
-
   } catch (error) {
-  console.error("GET TENANTS ERROR:", error);
-  res.status(500).json({
-    message: "Error fetching tenants",
-    error: error.message,
-    stack: error.stack
-  });
-}
+    console.error("GET TENANTS ERROR:", error);
+    res.status(500).json({
+      message: "Error fetching tenants",
+      error: error.message
+    });
+  }
 };
 
 // ADD
 export const addTenant = async (req, res) => {
   try {
-    const {
-      building_id,
-      floor_id,
-      room_id,
-      name,
-      phone,
-      join_date,
-      advance
-    } = req.body;
+    const documents = req.files?.map(
+      f => ({ url: `/uploads/tenants/${f.filename}` })
+    ) || [];
 
-    let documents = [];
-    if (req.files && req.files.length > 0) {
-      documents = req.files.map(
-        file => `/uploads/tenants/${file.filename}`
-      );
-    }
-
-    const [result] = await db.query(
-      `INSERT INTO Tenants 
-      (building_id, floor_id, room_id, name, phone, join_date, advance, documents)
-      VALUES (?,?,?,?,?,?,?,?)`,
-      [
-        building_id,
-        floor_id,
-        room_id,
-        name,
-        phone,
-        join_date,
-        advance,
-        JSON.stringify(documents)
-      ]
-    );
-
-    res.json({
-      id: result.insertId,
+    const tenant = await Tenant.create({
       ...req.body,
       documents
     });
 
+    res.json(tenant);
   } catch (error) {
-  console.error("ADD TENANT ERROR:", error);
-  res.status(500).json({
-    message: "Error adding tenant",
-    error: error.message,
-    stack: error.stack
-  });
-}
+    console.error("ADD TENANT ERROR:", error);
+    res.status(500).json({
+      message: "Error adding tenant",
+      error: error.message
+    });
+  }
 };
 
 // UPDATE
 export const updateTenant = async (req, res) => {
   try {
-    const { name, phone, advance, join_date, building_id, floor_id, room_id } = req.body;
-
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ message: 'Tenant not found' });
 
-    const newDocuments = req.files?.map(f => ({ url: `/uploads/tenants/${f.filename}` })) || [];
+    const newDocuments = req.files?.map(
+      f => ({ url: `/uploads/tenants/${f.filename}` })
+    ) || [];
 
-    tenant.name = name;
-    tenant.phone = phone;
-    tenant.advance = advance;
-    tenant.join_date = join_date;
-    tenant.building_id = building_id;
-    tenant.floor_id = floor_id;
-    tenant.room_id = room_id;
-    tenant.documents = [...(tenant.documents || []), ...newDocuments];
+    await tenant.update({
+      ...req.body,
+      documents: [...(tenant.documents || []), ...newDocuments]
+    });
 
-    await tenant.save();
     res.json(tenant);
   } catch (err) {
     console.error('Error updating tenant:', err);
@@ -126,7 +69,7 @@ export const deleteTenant = async (req, res) => {
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ message: 'Tenant not found' });
 
-    tenant.documents.forEach(f => {
+    tenant.documents?.forEach(f => {
       const filePath = path.join('uploads/tenants', f.url.split('/').pop());
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     });
