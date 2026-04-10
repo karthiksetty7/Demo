@@ -4,38 +4,55 @@ import { FiEye, FiEyeOff } from 'react-icons/fi';
 import logo from '../../SettyRents.png';
 import './index.css';
 
+const API_BASE = "https://demo-production-bf0f.up.railway.app";
+
 const Login = () => {
   const navigate = useNavigate();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) navigate('/dashboard');
+    if (token) {
+      navigate('/dashboard');
+    }
   }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      const response = await fetch('https://demo-production-bf0f.up.railway.app/api/auth/login', {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
       if (data.success) {
         localStorage.setItem('token', data.token);
         navigate('/dashboard');
       } else {
-        setError(data.message || 'Invalid Username or Password');
+        setError(data.message || 'Invalid username or password');
       }
+
     } catch (err) {
-      setError('Server Error: ' + err.message);
+      setError(err.message || 'Server error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,9 +61,8 @@ const Login = () => {
       <form className='login-card' onSubmit={handleSubmit}>
         <img src={logo} alt='logo' className='login-logo' />
 
-        <label htmlFor='username'>Username</label>
+        <label>Username</label>
         <input
-          id='username'
           type='text'
           placeholder='Enter username'
           value={username}
@@ -55,10 +71,9 @@ const Login = () => {
           required
         />
 
-        <label htmlFor='password'>Password</label>
+        <label>Password</label>
         <div className='password-wrapper'>
           <input
-            id='password'
             type={showPassword ? 'text' : 'password'}
             placeholder='Enter password'
             value={password}
@@ -66,11 +81,11 @@ const Login = () => {
             autoComplete='current-password'
             required
           />
+
           <button
             type='button'
             className='toggle-password-btn'
             onClick={() => setShowPassword((prev) => !prev)}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <FiEyeOff /> : <FiEye />}
           </button>
@@ -78,12 +93,12 @@ const Login = () => {
 
         {error && <p className='error'>{error}</p>}
 
-        <button type='submit' className='login-btn'>
-          Login
+        <button type='submit' className='login-btn' disabled={loading}>
+          {loading ? 'Logging in...' : 'Login'}
         </button>
       </form>
     </div>
   );
 };
 
-export default Login
+export default Login;
