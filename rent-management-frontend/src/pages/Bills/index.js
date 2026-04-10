@@ -373,8 +373,8 @@ ${isPageStart ? `<div class="page">` : ``}
 </thead>
 <tbody>
 <tr>
-<td>${record.previous}</td>
-<td>${record.current}</td>
+<td>${record.previous_reading}</td>
+<td>${record.current_reading}</td>
 <td>${record.units}</td>
 <td>${record.rate}</td>
 <td>₹ ${record.amount}</td>
@@ -407,14 +407,14 @@ setTimeout(() => window.print(), 300);
     );
   };
 
-  const filteredRecords = records.filter(
-    (r) =>
-      (filterTenant ? r.tenant_id === filterTenant : true) &&
-      (filterRoom ? r.room_id === filterRoom : true) &&
-      (filterBuilding ? r.building_id === filterBuilding : true) &&
-      (filterMonth ? r.month === filterMonth : true) &&
-      (filterYear ? r.year.toString() === filterYear.toString() : true),
-  );
+ const filteredRecords = records.filter(
+  (r) =>
+    (filterTenant ? r.tenant_id === Number(filterTenant) : true) &&
+    (filterRoom ? r.room_id === Number(filterRoom) : true) &&
+    (filterBuilding ? r.building_id === Number(filterBuilding) : true) &&
+    (filterMonth ? r.month === filterMonth : true) &&
+    (filterYear ? r.year.toString() === filterYear.toString() : true)
+);
 
   // Print all filtered records
   const handlePrintAll = () => {
@@ -627,7 +627,7 @@ setTimeout(() => window.print(), 300);
           <button onClick={handlePrintAll}>Print Filtered</button>
         </div>
 
-        <h2>Filter Bills</h2>
+        <h2>Bills Records</h2>
 
         <div className="table-container">
           <table>
