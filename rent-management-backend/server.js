@@ -20,20 +20,22 @@ const app = express();
 
 console.log("🔥 NEW SERVER DEPLOYED - CORS SHOULD WORK");
 
-// =========================
-// 1. CORS (MUST BE FIRST)
-// =========================
-const corsOptions = {
-  origin: [
-    "http://localhost:3000"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-};
 
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+// =========================
+// 1. BULLETPROOF CORS FIX
+// =========================
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // Handle preflight request
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
 
 
 // =========================
