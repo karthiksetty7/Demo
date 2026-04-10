@@ -1,122 +1,234 @@
-import {useState, useEffect} from 'react'
-import Layout from '../../components/Layout'
-import './index.css'
+import { useState, useEffect, useCallback } from "react";
+import Layout from "../../components/Layout";
+import "./index.css";
 
 const Bills = () => {
   const [records, setRecords] = useState(() => {
-    const saved = localStorage.getItem('billRecords')
-    return saved ? JSON.parse(saved) : []
-  })
+    const saved = localStorage.getItem("billRecords");
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
-    localStorage.setItem('billRecords', JSON.stringify(records))
-  }, [records])
+    localStorage.setItem("billRecords", JSON.stringify(records));
+  }, [records]);
 
   // LOGO BASE64
-  const [logoBase64, setLogoBase64] = useState('')
+  const [logoBase64, setLogoBase64] = useState("");
 
   useEffect(() => {
-    fetch('/SettyRents.png')
-      .then(res => res.blob())
-      .then(blob => {
-        const reader = new FileReader()
+    fetch("/SettyRents.png")
+      .then((res) => res.blob())
+      .then((blob) => {
+        const reader = new FileReader();
         reader.onloadend = () => {
-          setLogoBase64(reader.result)
-        }
-        reader.readAsDataURL(blob)
-      })
-  }, [])
+          setLogoBase64(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      });
+  }, []);
 
-  const [tenantName, setTenantName] = useState('')
-  const [roomNumber, setRoomNumber] = useState('')
-  const [floor, setFloor] = useState('')
-  const [buildingName, setBuildingName] = useState('')
-  const [previous, setPrevious] = useState('')
-  const [current, setCurrent] = useState('')
-  const [units, setUnits] = useState('')
-  const [rate, setRate] = useState('')
-  const [amount, setAmount] = useState(0)
-  const [month, setMonth] = useState('')
-  const [year, setYear] = useState('')
+  const BASE_URL = "https://demo-production-bf0f.up.railway.app/api";
+  const getToken = () => localStorage.getItem("token");
 
-  const [filterTenant, setFilterTenant] = useState('')
-  const [filterRoom, setFilterRoom] = useState('')
-  const [filterBuilding, setFilterBuilding] = useState('')
-  const [filterMonth, setFilterMonth] = useState('')
-  const [filterYear, setFilterYear] = useState('')
+  const [previous, setPrevious] = useState("");
+  const [current, setCurrent] = useState("");
+  const [units, setUnits] = useState("");
+  const [rate, setRate] = useState("");
+  const [amount, setAmount] = useState(0);
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
+
+  const [filterTenant, setFilterTenant] = useState("");
+  const [filterRoom, setFilterRoom] = useState("");
+  const [filterBuilding, setFilterBuilding] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
+
+  const [buildings, setBuildings] = useState([]);
+  const [floors, setFloors] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [tenants, setTenants] = useState([]);
+
+  const [buildingId, setBuildingId] = useState("");
+  const [floorId, setFloorId] = useState("");
+  const [roomId, setRoomId] = useState("");
+  const [tenantId, setTenantId] = useState("");
 
   useEffect(() => {
-    if (previous !== '' && current !== '') {
-      const calculatedUnits = Number(current) - Number(previous)
-      const finalUnits = calculatedUnits >= 0 ? calculatedUnits : 0
-      setUnits(finalUnits)
+    fetch(`${BASE_URL}/buildings/getBuildings`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setBuildings(Array.isArray(data) ? data : data.data || []);
+      });
+  }, []);
 
-      if (rate !== '') {
-        setAmount(finalUnits * Number(rate))
+  useEffect(() => {
+    fetch(`${BASE_URL}/floors/getFloors`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setFloors(Array.isArray(data) ? data : data.data || []);
+      });
+  }, []);
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/rooms/getRooms`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setRooms(Array.isArray(data) ? data : data.data || []);
+      });
+  }, []);
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/tenants/getTenants`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setTenants(Array.isArray(data) ? data : data.data || []);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (previous !== "" && current !== "") {
+      const calculatedUnits = Number(current) - Number(previous);
+      const finalUnits = calculatedUnits >= 0 ? calculatedUnits : 0;
+      setUnits(finalUnits);
+
+      if (rate !== "") {
+        setAmount(finalUnits * Number(rate));
       } else {
-        setAmount(0)
+        setAmount(0);
       }
     }
-  }, [previous, current, rate])
+  }, [previous, current, rate]);
 
-  const handleSubmit = e => {
-    e.preventDefault()
+  useEffect(() => {
+    const fetchLastBill = async () => {
+      if (!tenantId) return;
 
-    const newRecord = {
-      id: Date.now(),
-      tenantName,
-      room: roomNumber,
-      floor,
-      buildingName,
-      previous,
-      current,
-      units,
-      rate,
-      amount,
-      month,
-      year,
+      try {
+        const res = await fetch(`${BASE_URL}/bills/last?tenantId=${tenantId}`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+
+        const data = await res.json();
+
+        if (data?.current_reading) {
+          setPrevious(data.current_reading);
+        } else {
+          setPrevious(0);
+        }
+      } catch (err) {
+        console.error(err);
+        setPrevious(0);
+      }
+    };
+
+    fetchLastBill();
+  }, [tenantId]);
+
+  const fetchBills = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/bills/getBills`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      const data = await res.json();
+      setRecords(data);
+    } catch (err) {
+      console.error(err);
     }
+  }, []);
 
-    setRecords([...records, newRecord])
+  useEffect(() => {
+    fetchBills();
+  }, [fetchBills]);
 
-    setTenantName('')
-    setRoomNumber('')
-    setFloor('')
-    setBuildingName('')
-    setPrevious('')
-    setCurrent('')
-    setUnits('')
-    setRate('')
-    setAmount(0)
-    setMonth('')
-    setYear('')
-  }
+  const filteredFloors = floors.filter(
+    (f) => f.building_id === Number(buildingId),
+  );
 
-  const handleEdit = id => {
-    const record = records.find(r => r.id === id)
-    if (!record) return
+  const filteredRooms = rooms.filter(
+    (r) =>
+      r.building_id === Number(buildingId) && r.floor_id === Number(floorId),
+  );
 
-    setTenantName(record.tenantName)
-    setRoomNumber(record.room)
-    setFloor(record.floor)
-    setBuildingName(record.buildingName)
-    setPrevious(record.previous)
-    setCurrent(record.current)
-    setUnits(record.units)
-    setRate(record.rate)
-    setAmount(record.amount)
-    setMonth(record.month)
-    setYear(record.year)
+  const filteredTenants = tenants.filter((t) => t.room_id === Number(roomId));
 
-    setRecords(records.filter(r => r.id !== id))
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const handleDelete = id => {
-    if (!window.confirm('Delete this bill?')) return
-    setRecords(records.filter(r => r.id !== id))
-  }
+    try {
+      const res = await fetch(`${BASE_URL}/bills/addBill`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          building_id: buildingId,
+          floor_id: floorId,
+          room_id: roomId,
+          tenant_id: tenantId,
+          previous_reading: previous,
+          current_reading: current,
+          units,
+          rate,
+          amount,
+          month,
+          year,
+        }),
+      });
 
-  const generatePrintHTML = records => {
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message);
+
+      fetchBills();
+      alert("Bill saved successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Error saving bill");
+    }
+  };
+
+  const handleEdit = (item) => {
+    setTenantId(item.tenant_id);
+    setRoomId(item.room_id);
+    setFloorId(item.floor_id);
+    setBuildingId(item.building_id);
+
+    setPrevious(item.previous_reading);
+    setCurrent(item.current_reading);
+    setUnits(item.units);
+    setRate(item.rate);
+    setAmount(item.amount);
+    setMonth(item.month);
+    setYear(item.year);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this bill?")) return;
+
+    await fetch(`${BASE_URL}/bills/deleteBill/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+
+    fetchBills();
+  };
+
+  const generatePrintHTML = (records) => {
     return (
       `
 <html>
@@ -213,8 +325,8 @@ th {
 ` +
       records
         .map((record, index) => {
-          const isPageStart = index % 2 === 0
-          const isPageEnd = index % 2 === 1
+          const isPageStart = index % 2 === 0;
+          const isPageEnd = index % 2 === 1;
 
           return `
 ${isPageStart ? `<div class="page">` : ``}
@@ -279,9 +391,9 @@ ${isPageStart ? `<div class="page">` : ``}
 </div>
 
 ${isPageEnd || index === records.length - 1 ? `</div>` : ``}
-`
+`;
         })
-        .join('') +
+        .join("") +
       `
 <script>
 window.onload = () => {
@@ -291,130 +403,229 @@ setTimeout(() => window.print(), 300);
 </body>
 </html>
 `
-    )
-  }
+    );
+  };
 
   const filteredRecords = records.filter(
-    r =>
-      (filterTenant
-        ? r.tenantName.toLowerCase().includes(filterTenant.toLowerCase())
-        : true) &&
-      (filterRoom
-        ? r.room.toLowerCase().includes(filterRoom.toLowerCase())
-        : true) &&
-      (filterBuilding
-        ? r.buildingName.toLowerCase().includes(filterBuilding.toLowerCase())
-        : true) &&
+    (r) =>
+      (filterTenant ? r.tenant_id === filterTenant : true) &&
+      (filterRoom ? r.room_id === filterRoom : true) &&
+      (filterBuilding ? r.building_id === filterBuilding : true) &&
       (filterMonth ? r.month === filterMonth : true) &&
       (filterYear ? r.year.toString() === filterYear.toString() : true),
-  )
+  );
 
   // Print all filtered records
   const handlePrintAll = () => {
-    const printWindow = window.open('', '', 'height=700,width=900')
-    printWindow.document.write(generatePrintHTML(filteredRecords))
-    printWindow.document.close()
-  }
+    const printWindow = window.open("", "", "height=700,width=900");
+    printWindow.document.write(generatePrintHTML(filteredRecords));
+    printWindow.document.close();
+  };
+
+  // Array Years
+  const years = Array.from(
+    { length: new Date().getFullYear() - 2020 + 6 },
+    (_, i) => 2020 + i,
+  );
 
   return (
     <Layout>
-      <div className='bill-container'>
+      <div className="bill-container">
         <h2>Electricity Bills</h2>
 
-        <form className='bill-form' onSubmit={handleSubmit}>
-          <input
-            placeholder='Tenant Name'
-            value={tenantName}
-            onChange={e => setTenantName(e.target.value)}
+        <form className="bill-form" onSubmit={handleSubmit}>
+          <select
+            value={tenantId}
+            onChange={(e) => setTenantId(e.target.value)}
             required
-          />
-          <input
-            placeholder='Room Number'
-            value={roomNumber}
-            onChange={e => setRoomNumber(e.target.value)}
+          >
+            <option value="">Select Tenant</option>
+            {filteredTenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={roomId}
+            onChange={(e) => {
+              setRoomId(e.target.value);
+              setTenantId("");
+            }}
             required
-          />
-          <input
-            placeholder='Floor'
-            value={floor}
-            onChange={e => setFloor(e.target.value)}
+          >
+            <option value="">Select Room</option>
+            {filteredRooms.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.room_number}
+              </option>
+            ))}
+          </select>
+          <select
+            value={floorId}
+            onChange={(e) => {
+              setFloorId(e.target.value);
+              setRoomId("");
+              setTenantId("");
+            }}
             required
-          />
-          <input
-            placeholder='Building Name'
-            value={buildingName}
-            onChange={e => setBuildingName(e.target.value)}
+          >
+            <option value="">Select Floor</option>
+            {filteredFloors.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.floor_number}
+              </option>
+            ))}
+          </select>
+          <select
+            value={buildingId}
+            onChange={(e) => {
+              setBuildingId(e.target.value);
+              setFloorId("");
+              setRoomId("");
+              setTenantId("");
+            }}
             required
-          />
+          >
+            <option value="">Select Building</option>
+            {buildings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
           <input
-            type='number'
-            placeholder='Previous'
+            type="number"
+            placeholder="Previous"
             value={previous}
-            onChange={e => setPrevious(e.target.value)}
+            onChange={(e) => setPrevious(e.target.value)}
             required
           />
           <input
-            type='number'
-            placeholder='Current'
+            type="number"
+            placeholder="Current"
             value={current}
-            onChange={e => setCurrent(e.target.value)}
+            onChange={(e) => setCurrent(e.target.value)}
             required
           />
-          <input type='number' placeholder='Units' value={units} readOnly />
+          <input type="number" placeholder="Units" value={units} readOnly />
           <input
-            type='number'
-            placeholder='Rate'
+            type="number"
+            placeholder="Rate"
             value={rate}
-            onChange={e => setRate(e.target.value)}
+            onChange={(e) => setRate(e.target.value)}
             required
           />
-          <input type='number' placeholder='Amount' value={amount} readOnly />
-          <input
-            placeholder='Month'
+          <input type="number" placeholder="Amount" value={amount} readOnly />
+          <select
             value={month}
-            onChange={e => setMonth(e.target.value)}
+            onChange={(e) => setMonth(e.target.value)}
             required
-          />
-          <input
-            placeholder='Year'
+          >
+            <option value="">Select Month</option>
+            <option>January</option>
+            <option>February</option>
+            <option>March</option>
+            <option>April</option>
+            <option>May</option>
+            <option>June</option>
+            <option>July</option>
+            <option>August</option>
+            <option>September</option>
+            <option>October</option>
+            <option>November</option>
+            <option>December</option>
+          </select>
+          <select
             value={year}
-            onChange={e => setYear(e.target.value)}
+            onChange={(e) => setYear(e.target.value)}
             required
-          />
-          <button type='submit'>Save Bill</button>
+          >
+            <option value="">Select Year</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <button type="submit">Save Bill</button>
         </form>
 
-        <h3>Filter Bills</h3>
-        <div className='filter-container'>
-          <input
-            placeholder='Tenant'
+        <h2>Filter Bills</h2>
+        <div className="filter-container">
+          <select
             value={filterTenant}
-            onChange={e => setFilterTenant(e.target.value)}
-          />
-          <input
-            placeholder='Room'
+            onChange={(e) => setFilterTenant(e.target.value)}
+          >
+            <option value="">All Tenants</option>
+            {tenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={filterRoom}
-            onChange={e => setFilterRoom(e.target.value)}
-          />
-          <input
-            placeholder='Building'
+            onChange={(e) => setFilterRoom(e.target.value)}
+          >
+            <option value="">All Rooms</option>
+            {rooms.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.room_number}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={filterBuilding}
-            onChange={e => setFilterBuilding(e.target.value)}
-          />
-          <input
-            placeholder='Month'
+            onChange={(e) => setFilterBuilding(e.target.value)}
+          >
+            <option value="">All Buildings</option>
+            {buildings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={filterMonth}
-            onChange={e => setFilterMonth(e.target.value)}
-          />
-          <input
-            placeholder='Year'
+            onChange={(e) => setFilterMonth(e.target.value)}
+          >
+            <option value="">All Months</option>
+            <option>January</option>
+            <option>February</option>
+            <option>March</option>
+            <option>April</option>
+            <option>May</option>
+            <option>June</option>
+            <option>July</option>
+            <option>August</option>
+            <option>September</option>
+            <option>October</option>
+            <option>November</option>
+            <option>December</option>
+          </select>
+
+          <select
             value={filterYear}
-            onChange={e => setFilterYear(e.target.value)}
-          />
+            onChange={(e) => setFilterYear(e.target.value)}
+          >
+            <option value="">All Years</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+
           <button onClick={handlePrintAll}>Print Filtered</button>
         </div>
 
-        <div className='table-container'>
+        <h2>Filter Bills</h2>
+
+        <div className="table-container">
           <table>
             <thead>
               <tr>
@@ -430,25 +641,36 @@ setTimeout(() => window.print(), 300);
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map(item => (
+              {filteredRecords.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.tenantName}</td>
-                  <td>{item.room}</td>
-                  <td>{item.floor}</td>
-                  <td>{item.buildingName}</td>
+                  <td>
+                    {tenants.find((t) => t.id === item.tenant_id)?.name || ""}
+                  </td>
+                  <td>
+                    {rooms.find((r) => r.id === item.room_id)?.room_number ||
+                      ""}
+                  </td>
+                  <td>
+                    {floors.find((f) => f.id === item.floor_id)?.floor_number ||
+                      ""}
+                  </td>
+                  <td>
+                    {buildings.find((b) => b.id === item.building_id)?.name ||
+                      ""}
+                  </td>
                   <td>{item.units}</td>
                   <td>{item.amount}</td>
                   <td>{item.month}</td>
                   <td>{item.year}</td>
                   <td>
                     <button
-                      className='edit-btn'
-                      onClick={() => handleEdit(item.id)}
+                      className="edit-btn"
+                      onClick={() => handleEdit(item)}
                     >
                       Edit
                     </button>
                     <button
-                      className='delete-btn'
+                      className="delete-btn"
                       onClick={() => handleDelete(item.id)}
                     >
                       Delete
@@ -460,51 +682,57 @@ setTimeout(() => window.print(), 300);
           </table>
         </div>
 
-        <div className='mobile-list'>
-          {filteredRecords.map(item => (
-            <div className='mobile-row' key={item.id}>
-              <div className='mobile-field'>
-                <span className='label'>Tenant</span>
-                <span>{item.tenantName}</span>
+        <div className="mobile-list">
+          {filteredRecords.map((item) => (
+            <div className="mobile-row" key={item.id}>
+              <div className="mobile-field">
+                <span className="label">Tenant</span>
+                <span>
+                  {tenants.find((t) => t.id === item.tenant_id)?.name || ""}
+                </span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Room</span>
-                <span>{item.room}</span>
+              <div className="mobile-field">
+                <span className="label">Room</span>
+                <span>
+                  {rooms.find((r) => r.id === item.room_id)?.room_number || ""}
+                </span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Floor</span>
-                <span>{item.floor}</span>
+              <div className="mobile-field">
+                <span className="label">Floor</span>
+                <span>
+                  {floors.find((f) => f.id === item.floor_id)?.floor_number ||
+                    ""}
+                </span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Building</span>
-                <span>{item.buildingName}</span>
+              <div className="mobile-field">
+                <span className="label">Building</span>
+                <span>
+                  {buildings.find((b) => b.id === item.building_id)?.name || ""}
+                </span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Units</span>
+              <div className="mobile-field">
+                <span className="label">Units</span>
                 <span>{item.units}</span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Amount</span>
+              <div className="mobile-field">
+                <span className="label">Amount</span>
                 <span>₹ {item.amount}</span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Month</span>
+              <div className="mobile-field">
+                <span className="label">Month</span>
                 <span>{item.month}</span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Year</span>
+              <div className="mobile-field">
+                <span className="label">Year</span>
                 <span>{item.year}</span>
               </div>
 
-              <div className='mobile-actions'>
-                <button
-                  className='edit-btn'
-                  onClick={() => handleEdit(item.id)}
-                >
+              <div className="mobile-actions">
+                <button className="edit-btn" onClick={() => handleEdit(item)}>
                   Edit
                 </button>
                 <button
-                  className='delete-btn'
+                  className="delete-btn"
                   onClick={() => handleDelete(item.id)}
                 >
                   Delete
@@ -515,7 +743,7 @@ setTimeout(() => window.print(), 300);
         </div>
       </div>
     </Layout>
-  )
-}
+  );
+};
 
-export default Bills
+export default Bills;
