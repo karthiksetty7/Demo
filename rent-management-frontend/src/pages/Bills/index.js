@@ -134,19 +134,20 @@ const Bills = () => {
   }, [tenantId]);
 
   const fetchBills = useCallback(async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/bills/getBills`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+  try {
+    const res = await fetch(`${BASE_URL}/bills/getBills`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
 
-      const data = await res.json();
-      setRecords(data);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
+    const data = await res.json();
+
+    setRecords(Array.isArray(data) ? data : data.data || []);
+  } catch (err) {
+    console.error(err);
+  }
+}, []);
 
   useEffect(() => {
     fetchBills();
