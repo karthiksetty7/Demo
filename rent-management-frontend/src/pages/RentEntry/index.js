@@ -96,7 +96,7 @@ const RentEntry = () => {
       setWater(last.water || 300)
       setMaintenance(last.maintenance || '')
       setElectricity(last.electricity || '')
-      setPreviousDue(Number(last.due || 0))
+      setPreviousDue(Number(last.previous_due || 0))
     } else {
       setBuilding('')
       setRoom('')
@@ -110,68 +110,71 @@ const RentEntry = () => {
 
   /* ================= CALCULATIONS ================= */
   const calculateTotal = () =>
-    Number(rent || 0) +
-    Number(water || 300) +
-    Number(maintenance || 0) +
-    Number(electricity || 0) +
-    Number(previousDue || 0)
+  Number(rent || 0) +
+  Number(water || 0) +
+  Number(maintenance || 0) +
+  Number(electricity || 0) +
+  Number(previousDue || 0)
 
   const calculateDue = () => {
-    const total = calculateTotal()
-    const p = Number(paid || 0)
-    const adv = Number(advance || 0)
+  const total = calculateTotal()
+  const p = Number(paid || 0)
+  const adv = Number(advance || 0)
 
-    if (status === 'vacating') return total - p - adv
-    return total - p
-  }
+  return status === 'vacating'
+    ? total - p - adv
+    : total - p
+}
 
   const total = calculateTotal()
   const due = calculateDue()
 
   /* ================= SAVE ================= */
-  const handleSubmit = async e => {
-    e.preventDefault()
+  const handleSubmit = async (e) => {
+  e.preventDefault()
 
-    const payload = {
-      tenant_id: tenantId,
-      building,
-      room,
-      month,
-      rent,
-      water,
-      maintenance,
-      electricity,
-      previous_due: previousDue,
-      total,
-      paid,
-      advance,
-      status,
-      due,
-    }
+  const payload = {
+    tenant_id: Number(tenantId),
+    building,
+    room,
+    month,
 
-    if (editingId) {
-      await fetch(`${BASE_URL}/rent/updateRentEntry/${editingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify(payload),
-      })
-    } else {
-      await fetch(`${BASE_URL}/rent/createRentEntry`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify(payload),
-      })
-    }
+    rent: Number(rent || 0),
+    water: Number(water || 0),
+    maintenance: Number(maintenance || 0),
+    electricity: Number(electricity || 0),
 
-    fetchEntries()
-    handleCancel()
+    previous_due: Number(previousDue || 0),
+    total: Number(total || 0),
+
+    paid: Number(paid || 0),
+    advance: Number(advance || 0),
+
+    status,
+    due: Number(due || 0),
   }
+
+  const url = editingId
+    ? `${BASE_URL}/rent/updateRentEntry/${editingId}`
+    : `${BASE_URL}/rent/createRentEntry`
+
+  const method = editingId ? "PUT" : "POST"
+
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const data = await res.json()
+  console.log("SAVE RESPONSE:", data)
+
+  fetchEntries()
+  handleCancel()
+}
 
   /* ================= EDIT ================= */
   const handleEdit = entry => {
