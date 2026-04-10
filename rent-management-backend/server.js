@@ -27,6 +27,7 @@ console.log("🔥 NEW SERVER DEPLOYED - CORS SHOULD WORK");
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
+  // Allow frontend
   if (origin === "http://localhost:3000") {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
@@ -35,6 +36,7 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
 
+  // IMPORTANT: handle preflight immediately
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
