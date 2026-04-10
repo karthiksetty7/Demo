@@ -134,20 +134,20 @@ const Bills = () => {
   }, [tenantId]);
 
   const fetchBills = useCallback(async () => {
-  try {
-    const res = await fetch(`${BASE_URL}/bills/getBills`, {
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-      },
-    });
+    try {
+      const res = await fetch(`${BASE_URL}/bills/getBills`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    setRecords(Array.isArray(data) ? data : data.data || []);
-  } catch (err) {
-    console.error(err);
-  }
-}, []);
+      setRecords(Array.isArray(data) ? data : data.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
 
   useEffect(() => {
     fetchBills();
@@ -175,17 +175,17 @@ const Bills = () => {
           Authorization: `Bearer ${getToken()}`,
         },
         body: JSON.stringify({
-          building_id: buildingId,
-          floor_id: floorId,
-          room_id: roomId,
-          tenant_id: tenantId,
-          previous_reading: previous,
-          current_reading: current,
-          units,
-          rate,
-          amount,
+          building_id: Number(buildingId),
+          floor_id: Number(floorId),
+          room_id: Number(roomId),
+          tenant_id: Number(tenantId),
+          previous_reading: Number(previous),
+          current_reading: Number(current),
+          units: Number(units),
+          rate: Number(rate),
+          amount: Number(amount),
           month,
-          year,
+          year: Number(year),
         }),
       });
 
@@ -436,32 +436,23 @@ setTimeout(() => window.print(), 300);
 
         <form className="bill-form" onSubmit={handleSubmit}>
           <select
-            value={tenantId}
-            onChange={(e) => setTenantId(e.target.value)}
-            required
-          >
-            <option value="">Select Tenant</option>
-            {filteredTenants.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={roomId}
+            value={buildingId}
             onChange={(e) => {
-              setRoomId(e.target.value);
+              setBuildingId(e.target.value);
+              setFloorId("");
+              setRoomId("");
               setTenantId("");
             }}
             required
           >
-            <option value="">Select Room</option>
-            {filteredRooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.room_number}
+            <option value="">Select Building</option>
+            {buildings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
               </option>
             ))}
           </select>
+
           <select
             value={floorId}
             onChange={(e) => {
@@ -478,20 +469,32 @@ setTimeout(() => window.print(), 300);
               </option>
             ))}
           </select>
+
           <select
-            value={buildingId}
+            value={roomId}
             onChange={(e) => {
-              setBuildingId(e.target.value);
-              setFloorId("");
-              setRoomId("");
+              setRoomId(e.target.value);
               setTenantId("");
             }}
             required
           >
-            <option value="">Select Building</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
+            <option value="">Select Room</option>
+            {filteredRooms.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.room_number}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={tenantId}
+            onChange={(e) => setTenantId(e.target.value)}
+            required
+          >
+            <option value="">Select Tenant</option>
+            {filteredTenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
               </option>
             ))}
           </select>
