@@ -29,8 +29,10 @@ const Bill = sequelize.define('Bill', {
   generated_date: { type: DataTypes.DATEONLY },
   status: { type: DataTypes.ENUM('pending', 'paid'), defaultValue: 'pending' },
 }, {
-  tableName: 'Bills',
+   tableName: 'Bills',
   timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false
 });
 
 // associations
