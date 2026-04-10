@@ -39,28 +39,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// IMPORTANT: handle preflight BEFORE routes
 app.options("*", cors(corsOptions));
 
 app.use(express.json());
+
+// routes
 app.use('/api/auth', authRoutes);
-
-// --------------------
-// Static files
-// --------------------
-app.use('/uploads', express.static(uploadsPath));
-
-// --------------------
-// Routes
-// --------------------
-app.get('/', (req, res) => res.send('API is running...'));
-
-
-app.use('/api/buildings', buildingRoutes);
-app.use('/api/floors', floorRoutes);
-app.use('/api/rooms', roomRoutes);
-app.use('/api/tenants', tenantRoutes);
-app.use("/api/rent", rentEntryRoutes);
-
 // --------------------
 // Start Server
 // --------------------
