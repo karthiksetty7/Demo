@@ -8,6 +8,7 @@ import floorRoutes from './routes/floorRoutes.js';
 import roomRoutes from './routes/roomRoutes.js';
 import tenantRoutes from './routes/tenantRoutes.js';
 import rentEntryRoutes from "./routes/rentRoutes.js";
+import billRoutes from "./routes/billRoutes.js";
 
 import { connectDB, sequelize } from './config/db.js';
 
@@ -81,6 +82,7 @@ app.use('/api/floors', floorRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use("/api/rent", rentEntryRoutes);
+app.use("/api/bills", billRoutes);
 
 // =========================
 // START SERVER
