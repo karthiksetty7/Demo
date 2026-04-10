@@ -18,14 +18,26 @@ dotenv.config();
 
 const app = express();
 
-console.log("🔥 NEW SERVER DEPLOYED - CORS SHOULD WORK");
-
+console.log("🔥 SERVER STARTED");
 
 // =========================
-// 1. CORS (FIXED PROPERLY)
+// ✅ FIXED CORS (PRODUCTION READY)
 // =========================
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "https://demo-production-bf0f.up.railway.app"
+];
+
 const corsOptions = {
-  origin: "http://localhost:3000",
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS blocked for origin: " + origin));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -34,15 +46,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-
 // =========================
-// 2. BODY PARSER
+// BODY PARSER
 // =========================
 app.use(express.json());
 
-
 // =========================
-// 3. UPLOAD FOLDERS
+// UPLOAD FOLDER
 // =========================
 const uploadsPath = path.join(process.cwd(), 'uploads');
 const tenantsPath = path.join(uploadsPath, 'tenants');
@@ -53,17 +63,15 @@ if (!fs.existsSync(tenantsPath)) {
 
 app.use('/uploads', express.static(uploadsPath));
 
-
 // =========================
-// 4. HEALTH CHECK ROUTE
+// HEALTH CHECK
 // =========================
 app.get('/', (req, res) => {
   res.json({ message: "API is running 🚀" });
 });
 
-
 // =========================
-// 5. ROUTES
+// ROUTES
 // =========================
 app.use('/api/auth', authRoutes);
 app.use('/api/buildings', buildingRoutes);
@@ -72,9 +80,8 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use("/api/rent", rentEntryRoutes);
 
-
 // =========================
-// 6. START SERVER
+// START SERVER
 // =========================
 const startServer = async () => {
   try {
