@@ -1,7 +1,7 @@
 import RentEntry from "../models/RentEntry.js";
 import Tenant from "../models/Tenant.js";
 
-
+/* GET ALL */
 export const getRentEntries = async (req, res) => {
   try {
     const entries = await RentEntry.findAll({
@@ -17,48 +17,70 @@ export const getRentEntries = async (req, res) => {
 
     res.json(entries);
   } catch (error) {
-    res.status(500).json(error.message);
+    console.log("GET ERROR:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
-
+/* CREATE */
 export const createRentEntry = async (req, res) => {
   try {
-    const entry = await RentEntry.create(req.body);
+    const data = normalize(req.body);
+
+    const entry = await RentEntry.create(data);
     res.json(entry);
   } catch (error) {
-    res.status(500).json(error.message);
+    console.log("CREATE ERROR:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
-
+/* UPDATE */
 export const updateRentEntry = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await RentEntry.update(req.body, {
-      where: { id },
-    });
+    const data = normalize(req.body);
+
+    await RentEntry.update(data, { where: { id } });
 
     const updated = await RentEntry.findByPk(id);
-
     res.json(updated);
   } catch (error) {
-    res.status(500).json(error.message);
+    console.log("UPDATE ERROR:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
-
+/* DELETE */
 export const deleteRentEntry = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    await RentEntry.destroy({
-      where: { id },
-    });
-
+    await RentEntry.destroy({ where: { id: req.params.id } });
     res.json({ message: "Deleted" });
   } catch (error) {
-    res.status(500).json(error.message);
+    console.log("DELETE ERROR:", error);
+    res.status(500).json({ message: error.message });
   }
 };
+
+/* 🔥 NORMALIZER */
+const normalize = (body) => ({
+  tenant_id: Number(body.tenant_id),
+  building: body.building,
+  room: body.room,
+  month: body.month,
+
+  rent: Number(body.rent || 0),
+  water: Number(body.water || 0),
+  maintenance: Number(body.maintenance || 0),
+  electricity: Number(body.electricity || 0),
+
+  previous_due: Number(body.previous_due || 0),
+  total: Number(body.total || 0),
+
+  paid: Number(body.paid || 0),
+  advance: Number(body.advance || 0),
+
+  status: body.status || "not vacated",
+  due: Number(body.due || 0),
+});
