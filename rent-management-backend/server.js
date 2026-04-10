@@ -18,6 +18,7 @@ dotenv.config();
 
 const app = express();
 
+console.log("🔥 NEW SERVER DEPLOYED - CORS SHOULD WORK");
 
 // =========================
 // 1. CORS (MUST BE FIRST)
