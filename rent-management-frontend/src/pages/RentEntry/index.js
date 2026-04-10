@@ -1,12 +1,15 @@
-import {useState, useEffect} from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Layout from '../../components/Layout'
 import './index.css'
 
+const BASE_URL = 'https://demo-production-bf0f.up.railway.app/api'
+
 const RentEntry = () => {
-  const [tenants] = useState([
-    {id: 1, name: 'Ravi'},
-    {id: 2, name: 'Suresh'},
-  ])
+  const [tenants, setTenants] = useState([])
+  const [entries, setEntries] = useState([])
+
+  const [buildings, setBuildings] = useState([])
+  const [rooms, setRooms] = useState([])
 
   const [tenantId, setTenantId] = useState('')
   const [building, setBuilding] = useState('')
@@ -21,45 +24,82 @@ const RentEntry = () => {
   const [advance, setAdvance] = useState('')
   const [status, setStatus] = useState('not vacated')
 
-  const [entries, setEntries] = useState([])
   const [editingId, setEditingId] = useState(null)
 
-  // FILTER STATES
   const [filterRoom, setFilterRoom] = useState('')
   const [filterBuilding, setFilterBuilding] = useState('')
   const [filterMonth, setFilterMonth] = useState('')
   const [filterYear, setFilterYear] = useState('')
 
-  // LOGO BASE64
-  const [logoBase64, setLogoBase64] = useState('')
+  const getToken = () => localStorage.getItem('token')
 
+  /* ================= FETCH TENANTS ================= */
   useEffect(() => {
-    fetch('/SettyRents.png')
-      .then(res => res.blob())
-      .then(blob => {
-        const reader = new FileReader()
-        reader.onloadend = () => setLogoBase64(reader.result)
-        reader.readAsDataURL(blob)
+    const fetchTenants = async () => {
+      const res = await fetch(`${BASE_URL}/tenants/getTenants`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
       })
+      const data = await res.json()
+      setTenants(Array.isArray(data) ? data : [])
+    }
+    fetchTenants()
+  }, [])
+
+  /* ================= FETCH BUILDINGS & ROOMS ================= */
+  useEffect(() => {
+    const fetchBuildings = async () => {
+      const res = await fetch(`${BASE_URL}/buildings/getBuildings`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      const data = await res.json()
+      setBuildings(Array.isArray(data) ? data : [])
+    }
+    fetchBuildings()
+
+    const fetchRooms = async () => {
+      const res = await fetch(`${BASE_URL}/rooms/getRooms`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      const data = await res.json()
+      setRooms(Array.isArray(data) ? data : [])
+    }
+    fetchRooms()
+  }, [])
+
+  /* ================= FETCH ENTRIES (FIXED ESLINT WARNING) ================= */
+  const fetchEntries = useCallback(async () => {
+    const res = await fetch(`${BASE_URL}/rent/getRentEntries`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+    const data = await res.json()
+    setEntries(Array.isArray(data) ? data : [])
   }, [])
 
   useEffect(() => {
+    fetchEntries()
+  }, [fetchEntries])
+
+  /* ================= AUTO FILL FROM LAST ENTRY ================= */
+  useEffect(() => {
     if (!tenantId || editingId) return
 
-    const tId = parseInt(tenantId)
-
     const tenantEntries = entries
-      .filter(e => e.tenantId === tId)
-      .sort((a, b) => (a.month > b.month ? 1 : -1))
+      .filter(e => e.tenant_id === parseInt(tenantId))
+      .sort((a, b) => new Date(a.month) - new Date(b.month))
 
-    if (tenantEntries.length) {
-      const lastEntry = tenantEntries[tenantEntries.length - 1]
-      setRent(lastEntry.rent)
-      setWater(lastEntry.water)
-      setMaintenance(lastEntry.maintenance)
-      setElectricity(lastEntry.electricity)
-      setPreviousDue(lastEntry.due)
+    if (tenantEntries.length > 0) {
+      const last = tenantEntries[tenantEntries.length - 1]
+
+      setBuilding(last.building || '')
+      setRoom(last.room || '')
+      setRent(last.rent || '')
+      setWater(last.water || 300)
+      setMaintenance(last.maintenance || '')
+      setElectricity(last.electricity || '')
+      setPreviousDue(Number(last.due || 0))
     } else {
+      setBuilding('')
+      setRoom('')
       setRent('')
       setWater(300)
       setMaintenance('')
@@ -68,6 +108,7 @@ const RentEntry = () => {
     }
   }, [tenantId, entries, editingId])
 
+  /* ================= CALCULATIONS ================= */
   const calculateTotal = () =>
     Number(rent || 0) +
     Number(water || 300) +
@@ -79,6 +120,7 @@ const RentEntry = () => {
     const total = calculateTotal()
     const p = Number(paid || 0)
     const adv = Number(advance || 0)
+
     if (status === 'vacating') return total - p - adv
     return total - p
   }
@@ -86,43 +128,55 @@ const RentEntry = () => {
   const total = calculateTotal()
   const due = calculateDue()
 
-  const handleSubmit = e => {
+  /* ================= SAVE ================= */
+  const handleSubmit = async e => {
     e.preventDefault()
 
-    const tenant = tenants.find(t => t.id === parseInt(tenantId))
-
-    const newEntry = {
-      id: editingId || Date.now(),
-      tenantId: parseInt(tenantId),
-      tenant: tenant?.name,
+    const payload = {
+      tenant_id: tenantId,
       building,
       room,
       month,
-      rent: Number(rent || 0),
-      water: Number(water || 300),
-      maintenance: Number(maintenance || 0),
-      electricity: Number(electricity || 0),
-      previousDue,
+      rent,
+      water,
+      maintenance,
+      electricity,
+      previous_due: previousDue,
       total,
-      paid: Number(paid || 0),
-      advance: Number(advance || 0),
+      paid,
+      advance,
       status,
       due,
     }
 
     if (editingId) {
-      setEntries(prev => prev.map(e => (e.id === editingId ? newEntry : e)))
-      setEditingId(null)
+      await fetch(`${BASE_URL}/rent/updateRentEntry/${editingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify(payload),
+      })
     } else {
-      setEntries(prev => [...prev, newEntry])
+      await fetch(`${BASE_URL}/rent/createRentEntry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify(payload),
+      })
     }
 
+    fetchEntries()
     handleCancel()
   }
 
+  /* ================= EDIT ================= */
   const handleEdit = entry => {
     setEditingId(entry.id)
-    setTenantId(entry.tenantId.toString())
+    setTenantId(entry.tenant_id.toString())
     setBuilding(entry.building)
     setRoom(entry.room)
     setMonth(entry.month)
@@ -130,16 +184,22 @@ const RentEntry = () => {
     setWater(entry.water)
     setMaintenance(entry.maintenance)
     setElectricity(entry.electricity)
-    setPreviousDue(entry.previousDue)
+    setPreviousDue(entry.previous_due)
     setPaid(entry.paid)
     setAdvance(entry.advance)
     setStatus(entry.status)
   }
 
-  const handleDelete = id => {
-    if (window.confirm('Delete this entry?')) {
-      setEntries(prev => prev.filter(e => e.id !== id))
-    }
+  /* ================= DELETE ================= */
+  const handleDelete = async id => {
+    if (!window.confirm('Delete this entry?')) return
+
+    await fetch(`${BASE_URL}/rent/deleteRentEntry/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+
+    fetchEntries()
   }
 
   const handleCancel = () => {
@@ -158,162 +218,21 @@ const RentEntry = () => {
     setStatus('not vacated')
   }
 
-  // FILTER LOGIC
-  const getFilteredEntries = () => {
-    return entries.filter(e => {
-      const [year, m] = e.month.split('-')
-      return (
-        (!filterRoom || e.room.includes(filterRoom)) &&
-        (!filterBuilding || e.building.includes(filterBuilding)) &&
-        (!filterMonth || m === filterMonth) &&
-        (!filterYear || year === filterYear)
-      )
-    })
-  }
+  /* ================= FILTER OPTIONS ================= */
+  const buildingOptions = buildings.map(b => b.name)
+  const roomOptions = rooms.map(r => r.room_number)
+  const monthOptions = [...new Set(entries.map(e => e.month.split('-')[1]))]
+  const yearOptions = [...new Set(entries.map(e => e.month.split('-')[0]))]
 
-  const filteredEntries = getFilteredEntries()
-
-  const handlePrint = () => {
-    if (!filterBuilding.trim()) {
-      alert('Please enter Building name to print report')
-      return
-    }
-
-    if (filteredEntries.length === 0) {
-      alert('No records found')
-      return
-    }
-
-    const monthDisplay = filterMonth || ''
-    const yearDisplay = filterYear || ''
-
-    const printWindow = window.open('', '', 'width=900,height=700')
-
-    const tableRows = filteredEntries
-      .map(
-        (e, idx) => `
-      <tr style="background:${idx % 2 === 0 ? '#fdfdfd' : '#f1f4f8'}">
-        <td>${e.tenant}</td>
-        <td>${e.building}</td>
-        <td>${e.room}</td>
-        <td>${e.month}</td>
-        <td>₹ ${e.total}</td>
-        <td>₹ ${e.paid}</td>
-        <td>₹ ${e.due}</td>
-      </tr>
-    `,
-      )
-      .join('')
-
-    const totalAmount = filteredEntries.reduce(
-      (sum, e) => sum + Number(e.total),
-      0,
+  const filteredEntries = entries.filter(e => {
+    const [year, m] = e.month.split('-')
+    return (
+      (!filterRoom || e.room === filterRoom) &&
+      (!filterBuilding || e.building === filterBuilding) &&
+      (!filterMonth || m === filterMonth) &&
+      (!filterYear || year === filterYear)
     )
-    const totalPaid = filteredEntries.reduce(
-      (sum, e) => sum + Number(e.paid),
-      0,
-    )
-    const totalDue = filteredEntries.reduce((sum, e) => sum + Number(e.due), 0)
-
-    printWindow.document.open()
-    printWindow.document.write(`
-    <html>
-      <head>
-        <title>Rent Report</title>
-        <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin:0; padding:30px; color:#333; background:#fff; }
-          .header { text-align:center; margin-bottom:15px; }
-          .logo { max-width:120px; display:block; margin:0 auto 10px auto; }
-          .company-name { font-size:28px; font-weight:bold; color:#2c3e50; margin-bottom:5px; }
-          .report-title { font-size:20px; color:#2980b9; margin-bottom:10px; font-weight:600; }
-
-          .info-bar { text-align:center; margin-bottom:25px; font-size:14px; color:#555; }
-          .info-bar span { margin: 0 15px; }
-
-          table { width:100%; border-collapse: collapse; font-size:14px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); }
-          th { background: #2980b9; color: #fff; padding:12px 8px; text-align:center; font-weight:600; }
-          td { padding:10px 8px; text-align:center; border-bottom:1px solid #e0e0e0; }
-
-          tr:nth-child(even) { background:#f9f9f9; }
-
-          .totals { margin-top:20px; text-align:right; font-size:16px; font-weight:600; color:#2c3e50; }
-          .totals span { margin-left:25px; }
-
-          @media print {
-            body { -webkit-print-color-adjust: exact; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          ${
-            logoBase64
-              ? `<img src="${logoBase64}" class="logo" id="logoImg" />`
-              : ''
-          }
-          
-          <div class="report-title">Rent Collection Report</div>
-        </div>
-
-        <div class="info-bar">
-          <span>Building: <b>${filterBuilding}</b></span>
-          <span>Month: <b>${monthDisplay}</b></span>
-          <span>Year: <b>${yearDisplay}</b></span>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Tenant</th>
-              <th>Building</th>
-              <th>Room</th>
-              <th>Month</th>
-              <th>Total</th>
-              <th>Paid</th>
-              <th>Due</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-          </tbody>
-        </table>
-
-        <div class="totals">
-          <span>Total Amount: ₹ ${totalAmount}</span>
-          <span>Total Paid: ₹ ${totalPaid}</span>
-          <span>Total Due: ₹ ${totalDue}</span>
-        </div>
-      </body>
-    </html>
-  `)
-
-    printWindow.document.close()
-
-    // ✅ Fix: Wait for logo to load before printing
-    const triggerPrint = () => {
-      printWindow.focus()
-      printWindow.print()
-      printWindow.close()
-    }
-
-    const waitForImage = () => {
-      const img = printWindow.document.getElementById('logoImg')
-
-      if (img) {
-        if (img.complete) {
-          triggerPrint()
-        } else {
-          img.onload = triggerPrint
-          img.onerror = triggerPrint
-        }
-      } else {
-        triggerPrint()
-      }
-    }
-
-    // Small delay ensures DOM is ready
-    setTimeout(waitForImage, 100)
-  }
+  })
 
   return (
     <Layout>
@@ -321,11 +240,7 @@ const RentEntry = () => {
         <h2>{editingId ? 'Update Rent Entry' : 'Add Rent Entry'}</h2>
 
         <form className='rent-form' onSubmit={handleSubmit}>
-          <select
-            value={tenantId}
-            onChange={e => setTenantId(e.target.value)}
-            required
-          >
+          <select value={tenantId} onChange={e => setTenantId(e.target.value)} required>
             <option value=''>Select Tenant</option>
             {tenants.map(t => (
               <option key={t.id} value={t.id}>
@@ -334,70 +249,31 @@ const RentEntry = () => {
             ))}
           </select>
 
-          <input
-            placeholder='Building'
-            value={building}
-            onChange={e => setBuilding(e.target.value)}
-            required
-          />
-          <input
-            placeholder='Room'
-            value={room}
-            onChange={e => setRoom(e.target.value)}
-            required
-          />
+          <select value={building} onChange={e => setBuilding(e.target.value)} required>
+            <option value=''>Select Building</option>
+            {buildingOptions.map((b, i) => (
+              <option key={i} value={b}>{b}</option>
+            ))}
+          </select>
 
-          <input
-            type='month'
-            value={month}
-            onChange={e => setMonth(e.target.value)}
-            required
-          />
+          <select value={room} onChange={e => setRoom(e.target.value)} required>
+            <option value=''>Select Room</option>
+            {roomOptions.map((r, i) => (
+              <option key={i} value={r}>{r}</option>
+            ))}
+          </select>
 
-          <input
-            type='number'
-            placeholder='Rent'
-            value={rent}
-            onChange={e => setRent(e.target.value)}
-          />
-          <input
-            type='number'
-            placeholder='Water'
-            value={water}
-            onChange={e => setWater(e.target.value)}
-          />
-          <input
-            type='number'
-            placeholder='Maintenance'
-            value={maintenance}
-            onChange={e => setMaintenance(e.target.value)}
-          />
-          <input
-            type='number'
-            placeholder='Electricity'
-            value={electricity}
-            onChange={e => setElectricity(e.target.value)}
-          />
+          <input type='month' value={month} onChange={e => setMonth(e.target.value)} required />
 
-          <input
-            type='number'
-            placeholder='Previous Due'
-            value={previousDue}
-            readOnly
-          />
+          <input type='number' placeholder='Rent' value={rent} onChange={e => setRent(e.target.value)} />
+          <input type='number' placeholder='Water' value={water} onChange={e => setWater(e.target.value)} />
+          <input type='number' placeholder='Maintenance' value={maintenance} onChange={e => setMaintenance(e.target.value)} />
+          <input type='number' placeholder='Electricity' value={electricity} onChange={e => setElectricity(e.target.value)} />
 
-          <input
-            type='number'
-            placeholder='Paid'
-            value={paid}
-            onChange={e => setPaid(e.target.value)}
-          />
-          <input
-            type='number'
-            placeholder='Advance'
-            value={advance}
-            onChange={e => setAdvance(e.target.value)}
-          />
+          <input type='number' placeholder='Previous Due' value={previousDue} readOnly />
+
+          <input type='number' placeholder='Paid' value={paid} onChange={e => setPaid(e.target.value)} />
+          <input type='number' placeholder='Advance' value={advance} onChange={e => setAdvance(e.target.value)} />
 
           <select value={status} onChange={e => setStatus(e.target.value)}>
             <option value='not vacated'>Not Vacated</option>
@@ -415,31 +291,39 @@ const RentEntry = () => {
         </form>
 
         <h2>Filter Rent Details</h2>
+
         <div className='filter-box'>
-          <input
-            placeholder='Room'
-            value={filterRoom}
-            onChange={e => setFilterRoom(e.target.value)}
-          />
-          <input
-            placeholder='Building'
-            value={filterBuilding}
-            onChange={e => setFilterBuilding(e.target.value)}
-          />
-          <input
-            placeholder='Month (MM)'
-            value={filterMonth}
-            onChange={e => setFilterMonth(e.target.value)}
-          />
-          <input
-            placeholder='Year (YYYY)'
-            value={filterYear}
-            onChange={e => setFilterYear(e.target.value)}
-          />
-          <button onClick={handlePrint}>Print Filtered</button>
+          <select value={filterBuilding} onChange={e => setFilterBuilding(e.target.value)}>
+            <option value=''>All Buildings</option>
+            {buildingOptions.map((b, i) => (
+              <option key={i} value={b}>{b}</option>
+            ))}
+          </select>
+
+          <select value={filterRoom} onChange={e => setFilterRoom(e.target.value)}>
+            <option value=''>All Rooms</option>
+            {roomOptions.map((r, i) => (
+              <option key={i} value={r}>{r}</option>
+            ))}
+          </select>
+
+          <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+            <option value=''>All Months</option>
+            {monthOptions.map((m, i) => (
+              <option key={i} value={m}>{m}</option>
+            ))}
+          </select>
+
+          <select value={filterYear} onChange={e => setFilterYear(e.target.value)}>
+            <option value=''>All Years</option>
+            {yearOptions.map((y, i) => (
+              <option key={i} value={y}>{y}</option>
+            ))}
+          </select>
         </div>
 
         <h2>Rent Records</h2>
+
         <div className='table-container'>
           <table>
             <thead>
@@ -454,10 +338,11 @@ const RentEntry = () => {
                 <th>Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredEntries.map(e => (
                 <tr key={e.id}>
-                  <td>{e.tenant}</td>
+                  <td>{e.tenant?.name}</td>
                   <td>{e.building}</td>
                   <td>{e.room}</td>
                   <td>{e.month}</td>
@@ -467,15 +352,8 @@ const RentEntry = () => {
                     {e.due}
                   </td>
                   <td>
-                    <button className='edit-btn' onClick={() => handleEdit(e)}>
-                      Edit
-                    </button>
-                    <button
-                      className='delete-btn'
-                      onClick={() => handleDelete(e.id)}
-                    >
-                      Delete
-                    </button>
+                    <button className='edit-btn' onClick={() => handleEdit(e)}>Edit</button>
+                    <button className='delete-btn' onClick={() => handleDelete(e.id)}>Delete</button>
                   </td>
                 </tr>
               ))}
