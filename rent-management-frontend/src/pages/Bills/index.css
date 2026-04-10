@@ -14,8 +14,8 @@
   margin-bottom: 20px;
 }
 
-.bill-form input,
-.filter-container input {
+.bill-form input,.bill-form select,
+.filter-container input,.filter-container select {
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid #d1d5db;
