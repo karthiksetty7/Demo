@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { protect } from '../middleware/authMiddleware.js';
 
 import {
   getTenants,
@@ -11,6 +12,9 @@ import {
 } from '../controllers/tenantController.js';
 
 const router = express.Router();
+
+// All routes protected
+router.use(protect);
 
 const uploadPath = path.join(process.cwd(), 'uploads/tenants');
 
@@ -41,8 +45,8 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ storage, fileFilter });
 
 router.get('/getTenants', getTenants);
-router.post('/addTenant', upload.array('files', 5), addTenant);
-router.put('/updateTenant/:id', upload.array('files', 5), updateTenant);
+router.post('/addTenant', upload.array('documents', 5), addTenant);
+router.put('/updateTenant/:id', upload.array('documents', 5), updateTenant);
 router.delete('/deleteTenant/:id', deleteTenant);
 
 export default router;
