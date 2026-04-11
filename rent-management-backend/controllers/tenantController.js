@@ -64,19 +64,20 @@ export const addTenant = async (req, res) => {
     console.log("BODY:", req.body);
     console.log("FILES:", req.files);
 
-    const documents =
-      req.files?.map((f) => ({
-        url: `/uploads/tenants/${f.filename}`,
-      })) || [];
+    const documents = Array.isArray(req.files)
+      ? req.files.map((f) => ({
+          url: `/uploads/tenants/${f.filename}`,
+        }))
+      : [];
 
     const tenant = await Tenant.create({
       name: req.body.name,
       phone: req.body.phone,
-      advance: Number(req.body.advance),
+      advance: parseFloat(req.body.advance),
       join_date: req.body.join_date,
-      building_id: Number(req.body.building_id),
-      floor_id: Number(req.body.floor_id),
-      room_id: Number(req.body.room_id),
+      building_id: parseInt(req.body.building_id),
+      floor_id: parseInt(req.body.floor_id),
+      room_id: parseInt(req.body.room_id),
       documents,
     });
 
@@ -87,7 +88,6 @@ export const addTenant = async (req, res) => {
     res.status(500).json({
       message: "Failed to save tenant",
       error: error.message,
-      stack: error.stack,
     });
   }
 };
