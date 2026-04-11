@@ -10,25 +10,14 @@ const Tenant = sequelize.define('Tenant', {
   phone: { type: DataTypes.STRING, allowNull: false },
   advance: { type: DataTypes.DECIMAL(10,2), allowNull: false },
   join_date: { type: DataTypes.DATEONLY, allowNull: false },
-
   building_id: { type: DataTypes.INTEGER, allowNull: false },
   floor_id: { type: DataTypes.INTEGER, allowNull: false },
   room_id: { type: DataTypes.INTEGER, allowNull: false },
-
-  documents: {
-    type: DataTypes.TEXT,
-    get() {
-      const val = this.getDataValue('documents');
-      return val ? JSON.parse(val) : [];
-    },
-    set(value) {
-      this.setDataValue('documents', JSON.stringify(value));
-    }
-  }
+  documents: { type: DataTypes.JSON, defaultValue: [] },
 }, {
   tableName: 'Tenants',
   freezeTableName: true,
-  timestamps: true,
+  timestamps: false   
 });
 
 // Associations
