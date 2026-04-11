@@ -27,7 +27,7 @@ const Bill = sequelize.define('Bill', {
   year: { type: DataTypes.INTEGER, allowNull: false },
 
   generated_date: { type: DataTypes.DATEONLY },
-  status: { type: DataTypes.ENUM('pending', 'paid'), defaultValue: 'pending' },
+  
 }, {
    tableName: 'Bills',
   timestamps: true,
