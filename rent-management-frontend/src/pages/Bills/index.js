@@ -47,6 +47,8 @@ const Bills = () => {
   const [roomId, setRoomId] = useState("");
   const [tenantId, setTenantId] = useState("");
 
+  const [editId, setEditId] = useState(null);
+
   useEffect(() => {
     fetch(`${BASE_URL}/buildings/getBuildings`, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -127,20 +129,21 @@ const Bills = () => {
   }, [tenantId]);
 
   const fetchBills = useCallback(async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/bills/getBills`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+  try {
+    const res = await fetch(`${BASE_URL}/bills/getBills`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      setRecords(Array.isArray(data) ? data : data.data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
+    console.log("API DATA:", data);   // 👈 ADD THIS
+    setRecords(Array.isArray(data) ? data : data.data || []);
+  } catch (err) {
+    console.error(err);
+  }
+}, []);
 
   useEffect(() => {
     fetchBills();
@@ -158,56 +161,66 @@ const Bills = () => {
   const filteredTenants = tenants.filter((t) => t.room_id === Number(roomId));
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      const res = await fetch(`${BASE_URL}/bills/addBill`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          building_id: Number(buildingId),
-          floor_id: Number(floorId),
-          room_id: Number(roomId),
-          tenant_id: Number(tenantId),
-          previous_reading: Number(previous),
-          current_reading: Number(current),
-          units: Number(units),
-          rate: Number(rate),
-          amount: Number(amount),
-          month,
-          year: Number(year),
-        }),
-      });
+  try {
+    const url = editId
+      ? `${BASE_URL}/bills/updateBill/${editId}`
+      : `${BASE_URL}/bills/addBill`;
 
-      const data = await res.json();
+    const method = editId ? "PUT" : "POST";
 
-      if (!res.ok) throw new Error(data.message);
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`,
+      },
+      body: JSON.stringify({
+        building_id: Number(buildingId),
+        floor_id: Number(floorId),
+        room_id: Number(roomId),
+        tenant_id: Number(tenantId),
+        previous_reading: Number(previous),
+        current_reading: Number(current),
+        units: Number(units),
+        rate: Number(rate),
+        amount: Number(amount),
+        month,
+        year: Number(year),
+      }),
+    });
 
-      fetchBills();
-      alert("Bill saved successfully");
-    } catch (err) {
-      console.error(err);
-      alert("Error saving bill");
-    }
-  };
+    const data = await res.json();
 
-  const handleEdit = (item) => {
-    setTenantId(item.tenant_id);
-    setRoomId(item.room_id);
-    setFloorId(item.floor_id);
-    setBuildingId(item.building_id);
+    if (!res.ok) throw new Error(data.message);
 
-    setPrevious(item.previous_reading);
-    setCurrent(item.current_reading);
-    setUnits(item.units);
-    setRate(item.rate);
-    setAmount(item.amount);
-    setMonth(item.month);
-    setYear(item.year);
-  };
+    fetchBills();
+    setEditId(null);   // reset edit mode
+    alert(editId ? "Bill updated successfully" : "Bill saved successfully");
+
+  } catch (err) {
+    console.error(err);
+    alert("Error saving bill");
+  }
+};
+
+ const handleEdit = (item) => {
+  setEditId(item.id);   // 👈 ADD THIS
+
+  setTenantId(item.tenant_id);
+  setRoomId(item.room_id);
+  setFloorId(item.floor_id);
+  setBuildingId(item.building_id);
+
+  setPrevious(item.previous_reading);
+  setCurrent(item.current_reading);
+  setUnits(item.units);
+  setRate(item.rate);
+  setAmount(item.amount);
+  setMonth(item.month);
+  setYear(item.year);
+};
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this bill?")) return;
@@ -400,15 +413,17 @@ setTimeout(() => window.print(), 300);
     );
   };
 
-const filteredRecords = records.filter(
-  (r) =>
-    (filterTenant ? r.tenant_id === Number(filterTenant) : true) &&
-    (filterRoom ? r.room_id === Number(filterRoom) : true) &&
-    (filterBuilding ? r.building_id === Number(filterBuilding) : true) &&
-    (filterMonth ? r.month === filterMonth : true) &&
-    (filterYear ? r.year === Number(filterYear) : true),
-);
+  const filteredRecords = records.filter(
+    (r) =>
+      (filterTenant ? r.tenant_id === Number(filterTenant) : true) &&
+      (filterRoom ? r.room_id === Number(filterRoom) : true) &&
+      (filterBuilding ? r.building_id === Number(filterBuilding) : true) &&
+      (filterMonth ? r.month === filterMonth : true) &&
+      (filterYear ? r.year === Number(filterYear) : true),
+  );
 
+  console.log("records:", records);
+  console.log("filtered:", filteredRecords);
   // Print all filtered records
   const handlePrintAll = () => {
     const printWindow = window.open("", "", "height=700,width=900");
