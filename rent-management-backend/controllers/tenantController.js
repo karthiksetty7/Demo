@@ -9,14 +9,31 @@ import { Sequelize } from 'sequelize';
 export const getTenants = async (req, res) => {
   try {
     const tenants = await Tenant.findAll({
-      order: [['id', 'DESC']],
+      order: [["id", "DESC"]],
+      include: [
+        {
+          model: Building,
+          as: "building",
+          attributes: ["name"],
+        },
+        {
+          model: Floor,
+          as: "floor",
+          attributes: ["floor_number"],
+        },
+        {
+          model: Room,
+          as: "room",
+          attributes: ["room_number"],
+        },
+      ],
     });
 
     res.json(tenants);
   } catch (error) {
-    console.error('GET TENANTS ERROR:', error);
+    console.error("GET TENANTS ERROR:", error);
     res.status(500).json({
-      message: 'Error fetching tenants',
+      message: "Error fetching tenants",
       error: error.message,
     });
   }
