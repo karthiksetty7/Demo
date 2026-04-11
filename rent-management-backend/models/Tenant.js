@@ -8,12 +8,23 @@ const Tenant = sequelize.define('Tenant', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING, allowNull: false },
   phone: { type: DataTypes.STRING, allowNull: false },
-  advance: { type: DataTypes.DECIMAL(10,2), allowNull: false }, // match MySQL
-  join_date: { type: DataTypes.DATEONLY, allowNull: false },      // match DB
+  advance: { type: DataTypes.DECIMAL(10,2), allowNull: false },
+  join_date: { type: DataTypes.DATEONLY, allowNull: false },
+
   building_id: { type: DataTypes.INTEGER, allowNull: false },
   floor_id: { type: DataTypes.INTEGER, allowNull: false },
   room_id: { type: DataTypes.INTEGER, allowNull: false },
-  documents: { type: DataTypes.JSON, defaultValue: [] },          // match DB
+
+  documents: {
+    type: DataTypes.TEXT,
+    get() {
+      const val = this.getDataValue('documents');
+      return val ? JSON.parse(val) : [];
+    },
+    set(value) {
+      this.setDataValue('documents', JSON.stringify(value));
+    }
+  }
 }, {
   tableName: 'Tenants',
   freezeTableName: true,
