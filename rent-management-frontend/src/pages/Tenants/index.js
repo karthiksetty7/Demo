@@ -217,14 +217,15 @@ const Tenants = () => {
       return;
 
     const formData = new FormData();
+    
     formData.append("name", name);
     formData.append("phone", phone);
     formData.append("advance", advance);
     formData.append("join_date", joiningDate);
-    formData.append("building_id", buildingId);
-    formData.append("floor_id", floorId);
-    formData.append("room_id", roomId);
-    files.forEach((f) => formData.append("files", f));
+    formData.append("building_id", Number(buildingId));
+    formData.append("floor_id", Number(floorId));
+    formData.append("room_id", Number(roomId));
+    files.forEach((f) => formData.append("documents", f));
 
     try {
       let res;
@@ -434,7 +435,7 @@ const Tenants = () => {
     printWindow.document.close();
   };
 
-  console.log("TENANT DATA:", tenants);
+  
 
   return (
     <Layout>
@@ -517,6 +518,7 @@ const Tenants = () => {
 
           <input
             type="file"
+            name="documents"
             multiple
             ref={fileInputRef}
             onChange={handleFileChange}
@@ -609,21 +611,32 @@ const Tenants = () => {
                   <td>{t.join_date}</td>
 
                   <td>
-                    {Array.isArray(t.documents) && t.documents.length > 0 ? (
-                      t.documents.map((f, i) => (
-                        <a
-                          key={i}
-                          href={`${FILE_BASE_URL}${f.url}`}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          style={{ marginRight: "8px" }}
-                        >
-                          View
-                        </a>
-                      ))
-                    ) : (
-                      <span>No Docs</span>
-                    )}
+                    {(() => {
+                      let docs = t.documents;
+
+                      
+
+                      if (typeof docs === "string") {
+                        try {
+                          docs = JSON.parse(docs);
+                        } catch {
+                          docs = [];
+                        }
+                      }
+
+                      return Array.isArray(docs) && docs.length > 0
+                        ? docs.map((f, i) => (
+                            <a
+                              key={i}
+                              href={`${FILE_BASE_URL}${f.url}`}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                            >
+                              View
+                            </a>
+                          ))
+                        : "No Docs";
+                    })()}
                   </td>
 
                   <td>
