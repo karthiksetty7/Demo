@@ -87,6 +87,7 @@ export const addTenant = async (req, res) => {
     res.status(500).json({
       message: "Failed to save tenant",
       error: error.message,
+      stack: error.stack,
     });
   }
 };
@@ -109,16 +110,16 @@ export const updateTenant = async (req, res) => {
         url: `/uploads/tenants/${f.filename}`,
       })) || [];
 
-   await tenant.update({
-  name: req.body.name,
-  phone: req.body.phone,
-  advance: Number(req.body.advance),
-  join_date: req.body.join_date,
-  building_id: Number(req.body.building_id),
-  floor_id: Number(req.body.floor_id),
-  room_id: Number(req.body.room_id),
-  documents: newDocs.length ? newDocs : tenant.documents,
-});
+    await tenant.update({
+      name: req.body.name,
+      phone: req.body.phone,
+      advance: parseFloat(req.body.advance),
+      join_date: req.body.join_date,
+      building_id: Number(req.body.building_id),
+      floor_id: Number(req.body.floor_id),
+      room_id: Number(req.body.room_id),
+      documents: newDocs.length ? newDocs : tenant.documents,
+    });
 
     // ✅ reload tenant with associations
     const updatedTenant = await Tenant.findByPk(req.params.id, {
