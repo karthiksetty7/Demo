@@ -204,7 +204,9 @@ const Tenants = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
+
     if (
       !buildingId ||
       !floorId ||
@@ -213,8 +215,10 @@ const Tenants = () => {
       !phone ||
       !advance ||
       !joiningDate
-    )
+    ) {
+      alert("Please fill all fields");
       return;
+    }
 
     const formData = new FormData();
 
@@ -223,7 +227,6 @@ const Tenants = () => {
     formData.append("advance", advance);
     formData.append("join_date", joiningDate);
 
-    
     formData.append("building_id", buildingId);
     formData.append("floor_id", floorId);
     formData.append("room_id", roomId);
@@ -232,6 +235,7 @@ const Tenants = () => {
 
     try {
       let res;
+
       if (editingId) {
         res = await fetch(`${BASE_URL}/tenants/updateTenant/${editingId}`, {
           method: "PUT",
@@ -246,8 +250,22 @@ const Tenants = () => {
         });
       }
 
-      if (!res.ok) throw new Error("Failed to save tenant");
-      const savedTenant = await res.json();
+      // ✅ SAFE JSON parsing (fix for Unexpected token '<')
+      let data;
+      const text = await res.text();
+
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        console.error("Server returned HTML instead of JSON:", text);
+        throw new Error("Server error — check backend logs");
+      }
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to save tenant");
+      }
+
+      const savedTenant = data;
 
       const mappedTenant = {
         ...savedTenant,
@@ -276,8 +294,8 @@ const Tenants = () => {
 
       handleCancel();
     } catch (err) {
-      console.error(err);
-      alert("Failed to save tenant");
+      console.error("TENANT SAVE ERROR:", err);
+      alert(err.message);
     }
   };
 
