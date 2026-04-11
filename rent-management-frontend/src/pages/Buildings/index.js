@@ -97,12 +97,14 @@ const Buildings = () => {
       return;
     }
 
+    // IMPORTANT FIX
     if (!res.ok) {
-      alert(data.error || data.message || 'Something went wrong');
+      alert(data.message || 'Something went wrong');
       return;
     }
 
     // success
+    alert(data.message); // always backend message
     setBuildingName('');
     setAddress('');
     setEditId(null);
@@ -160,6 +162,7 @@ const Buildings = () => {
     }
 
     // success
+    alert(data.message || 'Building deleted successfully');
     setBuildings((prev) => prev.filter((b) => b.id !== id));
 
   } catch (err) {
