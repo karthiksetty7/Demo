@@ -19,7 +19,7 @@ const Buildings = () => {
     const token = getToken();
     if (!token) {
       alert('Please login to access buildings.');
-      navigate('/login');
+      navigate('/');
       return;
     }
 
@@ -31,7 +31,7 @@ const Buildings = () => {
       if (res.status === 401) {
         alert('Session expired. Please login again.');
         localStorage.removeItem('token');
-        navigate('/login');
+        navigate('/');
         return;
       }
 
@@ -51,62 +51,68 @@ const Buildings = () => {
 
   // Add or Update building
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!buildingName || !address) {
-      alert('Please provide building name and address.');
+  e.preventDefault();
+
+  if (!buildingName || !address) {
+    alert('Please provide building name and address.');
+    return;
+  }
+
+  const token = getToken();
+  if (!token) {
+    alert('Please login.');
+    navigate('/');
+    return;
+  }
+
+  try {
+    let res;
+
+    if (editId) {
+      res = await fetch(`${API_URL}/updateBuilding/${editId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: buildingName, address }),
+      });
+    } else {
+      res = await fetch(`${API_URL}/addBuilding`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: buildingName, address }),
+      });
+    }
+
+    const data = await res.json();
+
+    if (res.status === 401) {
+      alert('Session expired. Please login again.');
+      localStorage.removeItem('token');
+      navigate('/');
       return;
     }
 
-    const token = getToken();
-    if (!token) {
-      alert('Please login.');
-      navigate('/login');
+    if (!res.ok) {
+      alert(data.error || data.message || 'Something went wrong');
       return;
     }
 
-    try {
-      let res;
-      if (editId) {
-        // Update building
-        res = await fetch(`${API_URL}/updateBuilding/${editId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name: buildingName, address }),
-        });
-      } else {
-        // Add new building
-        res = await fetch(`${API_URL}/addBuilding`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name: buildingName, address }),
-        });
-      }
+    // success
+    setBuildingName('');
+    setAddress('');
+    setEditId(null);
+    fetchBuildings();
 
-      if (res.status === 401) {
-        alert('Token invalid. Please login again.');
-        localStorage.removeItem('token');
-        navigate('/login');
-        return;
-      }
-
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-      // Clear form and refresh list
-      setBuildingName('');
-      setAddress('');
-      setEditId(null);
-      fetchBuildings();
-    } catch (err) {
-      console.error('Error saving building:', err);
-      alert('Failed to save building.');
-    }
-  };
+  } catch (err) {
+    console.error('Error saving building:', err);
+    alert('Network error. Please try again.');
+  }
+};
 
   // Edit building
   const handleEdit = (building) => {
@@ -124,35 +130,43 @@ const Buildings = () => {
 
   // Delete building
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this building?')) return;
+  if (!window.confirm('Delete this building?')) return;
 
-    const token = getToken();
-    if (!token) {
-      alert('Please login.');
-      navigate('/login');
+  const token = getToken();
+  if (!token) {
+    alert('Please login.');
+    navigate('/');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/deleteBuilding/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await res.json();
+
+    if (res.status === 401) {
+      alert('Session expired. Please login again.');
+      localStorage.removeItem('token');
+      navigate('/');
       return;
     }
 
-    try {
-      const res = await fetch(`${API_URL}/deleteBuilding/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.status === 401) {
-        alert('Token invalid. Please login again.');
-        localStorage.removeItem('token');
-        navigate('/login');
-        return;
-      }
-
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      setBuildings((prev) => prev.filter((b) => b.id !== id));
-    } catch (err) {
-      console.error('Error deleting building:', err);
-      alert('Failed to delete building.');
+    if (!res.ok) {
+      alert(data.error || data.message || 'Failed to delete building');
+      return;
     }
-  };
+
+    // success
+    setBuildings((prev) => prev.filter((b) => b.id !== id));
+
+  } catch (err) {
+    console.error('Error deleting building:', err);
+    alert('Network error. Please try again.');
+  }
+};
 
   return (
     <Layout>
@@ -233,4 +247,4 @@ const Buildings = () => {
   );
 };
 
-export default Buildings
+export default Buildings;
