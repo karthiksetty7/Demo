@@ -15,10 +15,29 @@ export const getBuildings = async (req, res) => {
 // Add building
 export const addBuilding = async (req, res) => {
   const { name, address } = req.body;
+
+  // datatype validation
+  if (typeof name !== 'string' || typeof address !== 'string') {
+    return res.status(400).json({ error: 'Name and address must be strings' });
+  }
+
   try {
     const building = await Building.create({ name, address });
-    res.json({ message: 'Building added successfully', building });
+
+    res.json({ 
+      message: 'Building added successfully', 
+      building 
+    });
+
   } catch (err) {
+
+    // unique constraint error
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ 
+        error: 'Address already exists' 
+      });
+    }
+
     res.status(500).json({ error: err.message });
   }
 };
@@ -41,8 +60,17 @@ export const updateBuilding = async (req, res) => {
 
   try {
     const building = await Building.findByPk(id);
+
     if (!building) {
       return res.status(404).json({ message: 'Building not found' });
+    }
+
+    if (name && typeof name !== 'string') {
+      return res.status(400).json({ error: 'Invalid name' });
+    }
+
+    if (address && typeof address !== 'string') {
+      return res.status(400).json({ error: 'Invalid address' });
     }
 
     building.name = name || building.name;
@@ -50,8 +78,19 @@ export const updateBuilding = async (req, res) => {
 
     await building.save();
 
-    res.json({ message: 'Building updated successfully', building });
+    res.json({ 
+      message: 'Building updated successfully', 
+      building 
+    });
+
   } catch (err) {
+
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        error: 'Address already exists'
+      });
+    }
+
     res.status(500).json({ error: err.message });
   }
 };
