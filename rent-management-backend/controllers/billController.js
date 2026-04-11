@@ -16,13 +16,7 @@ export const getBills = async (req, res) => {
       order: [['id', 'DESC']],
     });
 
-    res.json(
-      bills.map((b) => ({
-        ...b.toJSON(),
-        previous: b.previous_reading,
-        current: b.current_reading,
-      })),
-    );
+   res.json(bills);
   } catch (err) {
     console.error("GET BILLS ERROR:", err);
     res.status(500).json({
