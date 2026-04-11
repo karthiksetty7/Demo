@@ -5,6 +5,7 @@ const Building = sequelize.define('Building', {
   name: { 
     type: DataTypes.STRING, 
     allowNull: false,
+    unique: true,   // unique building name 
     validate: {
       notEmpty: true
     }
@@ -12,7 +13,7 @@ const Building = sequelize.define('Building', {
   address: { 
     type: DataTypes.STRING, 
     allowNull: false,
-    unique: true,   // uniqueness
+    unique: true, //  unique address
     validate: {
       notEmpty: true
     }
