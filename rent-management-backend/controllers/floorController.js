@@ -8,8 +8,8 @@ export const getFloors = async (req, res) => {
     });
     res.json(floors);
   } catch (err) {
-    res.status(500).json(err);
-  }
+  res.status(500).json({ message: err.message });
+}
 };
 
 export const addFloor = async (req, res) => {
@@ -18,8 +18,15 @@ export const addFloor = async (req, res) => {
     const floor = await Floor.create({ building_id, floor_number });
     res.json({ message: 'Floor added successfully', floor });
   } catch (err) {
-    res.status(500).json(err);
+
+  if (err.name === 'SequelizeUniqueConstraintError') {
+    return res.status(400).json({
+      message: 'Floor already exists for this building'
+    });
   }
+
+  res.status(500).json({ message: err.message });
+}
 };
 
 export const updateFloor = async (req, res) => {
@@ -32,11 +39,20 @@ export const updateFloor = async (req, res) => {
 
     floor.building_id = building_id;
     floor.floor_number = floor_number;
+
     await floor.save();
 
     res.json({ message: 'Floor updated successfully', floor });
+
   } catch (err) {
-    res.status(500).json(err);
+
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        message: 'Floor already exists for this building'
+      });
+    }
+
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -49,8 +65,9 @@ export const deleteFloor = async (req, res) => {
 
     await floor.destroy();
     res.json({ message: 'Floor deleted successfully' });
+
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -62,6 +79,6 @@ export const getFloorsByBuilding = async (req, res) => {
     });
     res.json(floors);
   } catch (err) {
-    res.status(500).json(err);
-  }
+  res.status(500).json({ message: err.message });
+}
 };
