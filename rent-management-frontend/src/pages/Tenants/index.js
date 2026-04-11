@@ -72,7 +72,7 @@ const Tenants = () => {
             id: f.id,
             buildingId: f.building_id,
             buildingName: f.building?.name || "",
-            floor_number: f.floor_number,
+            floorName: f.floor_number,
           })),
         );
       } catch (err) {
@@ -121,27 +121,38 @@ const Tenants = () => {
     const fetchTenants = async () => {
       const token = getToken();
       if (!token) return;
+
       try {
         const res = await fetch(`${BASE_URL}/tenants/getTenants`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         if (res.status === 401) {
           alert("Session expired. Please login again.");
           localStorage.removeItem("token");
           return;
         }
+
         const data = await res.json();
+
         setTenants(
           (Array.isArray(data) ? data : []).map((t) => ({
             ...t,
+
+            // 🔥 ALWAYS ensure array
+            documents: Array.isArray(t.documents) ? t.documents : [],
+
             building: {
-              name:
-                t.building?.name ||
-                buildings.find((b) => b.id === t.building_id)?.name ||
-                "",
+              name: t.building?.name || "",
             },
-            floor: { floor_number: t.floor?.floor_number || "" },
-            room: { room_number: t.room?.room_number || "" },
+
+            floor: {
+              floor_number: t.floor?.floor_number || "",
+            },
+
+            room: {
+              room_number: t.room?.room_number || "",
+            },
           })),
         );
       } catch (err) {
@@ -149,8 +160,9 @@ const Tenants = () => {
         setTenants([]);
       }
     };
+
     fetchTenants();
-  }, [buildings, floors, rooms]);
+  }, []);
 
   const filteredFloors = floors.filter(
     (f) => f.buildingId === parseInt(buildingId),
@@ -243,7 +255,7 @@ const Tenants = () => {
         floor: {
           floor_number:
             floors.find((f) => f.id === parseInt(savedTenant.floor_id))
-              ?.floorName || "",
+              ?.floor_number || "",
         },
         room: {
           room_number:
@@ -338,18 +350,18 @@ const Tenants = () => {
     const floorName = tenant.floor?.floor_number || "";
     const roomNumber = tenant.room?.room_number || "";
 
-    const filesHtml = Array.isArray(tenant.documents)
+    const filesHtml = tenant.documents
       ? tenant.documents
           .map(
             (f) => `
-      <div class="full-page">
-        ${
-          f.url.match(/\.(jpg|jpeg|png|gif)$/i)
-            ? `<img src="${FILE_BASE_URL}${f.url}" />`
-            : `<embed src="${FILE_BASE_URL}${f.url}" type="application/pdf" />`
-        }
-      </div>
-    `,
+    <div class="full-page">
+      ${
+        f.url.match(/\.(jpg|jpeg|png|gif)$/i)
+          ? `<img src="${FILE_BASE_URL}${f.url}" />`
+          : `<embed src="${FILE_BASE_URL}${f.url}" type="application/pdf" />`
+      }
+    </div>
+  `,
           )
           .join("")
       : "";
@@ -421,6 +433,8 @@ const Tenants = () => {
 
     printWindow.document.close();
   };
+
+  console.log("TENANT DATA:", tenants);
 
   return (
     <Layout>
@@ -526,8 +540,8 @@ const Tenants = () => {
             onChange={(e) => setFilterName(e.target.value)}
           >
             <option value="">All Tenants</option>
-            {[...new Set(tenants.map((t) => t.name))].map((name) => (
-              <option key={name} value={name}>
+            {[...new Set(tenants.map((t) => t.name))].map((name, i) => (
+              <option key={i} value={name}>
                 {name}
               </option>
             ))}
@@ -586,23 +600,33 @@ const Tenants = () => {
                   <td>{t.name}</td>
                   <td>{t.phone}</td>
                   <td>{t.building?.name}</td>
-                  <td>{t.floor?.floor_number}</td>
+
+                  {/* FLOOR FIX */}
+                  <td>{t.floor?.floor_number || "N/A"}</td>
+
                   <td>{t.room?.room_number}</td>
                   <td>{t.advance}</td>
                   <td>{t.join_date}</td>
+
+                  {/* ✅ DOCUMENT FIX */}
                   <td>
-                    {Array.isArray(t.documents) &&
+                    {t.documents.length > 0 ? (
                       t.documents.map((f, i) => (
                         <a
                           key={i}
                           href={`${FILE_BASE_URL}${f.url}`}
                           target="_blank"
                           rel="noreferrer noopener"
+                          style={{ marginRight: "8px" }}
                         >
                           View
                         </a>
-                      ))}
+                      ))
+                    ) : (
+                      <span>No Docs</span>
+                    )}
                   </td>
+
                   <td>
                     <button className="edit-btn" onClick={() => handleEdit(t)}>
                       Edit
