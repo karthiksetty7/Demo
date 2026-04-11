@@ -608,9 +608,8 @@ const Tenants = () => {
                   <td>{t.advance}</td>
                   <td>{t.join_date}</td>
 
-                  {/* ✅ DOCUMENT FIX */}
                   <td>
-                    {t.documents.length > 0 ? (
+                    {Array.isArray(t.documents) && t.documents.length > 0 ? (
                       t.documents.map((f, i) => (
                         <a
                           key={i}
