@@ -1,82 +1,149 @@
 import Tenant from '../models/Tenant.js';
 import fs from 'fs';
 import path from 'path';
+import { Sequelize } from 'sequelize';
 
+/* =========================
+   GET ALL TENANTS
+========================= */
 export const getTenants = async (req, res) => {
   try {
-    const tenants = await Tenant.findAll();
+    const tenants = await Tenant.findAll({
+      order: [['id', 'DESC']],
+    });
+
     res.json(tenants);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching tenants" });
+    console.error('GET TENANTS ERROR:', error);
+    res.status(500).json({
+      message: 'Error fetching tenants',
+      error: error.message,
+    });
   }
 };
 
+/* =========================
+   ADD TENANT
+========================= */
 export const addTenant = async (req, res) => {
   try {
-    const documents = req.files?.map(
-      f => ({ url: `/uploads/tenants/${f.filename}` })
-    ) || [];
+    const documents =
+      req.files?.map((f) => ({
+        url: `/uploads/tenants/${f.filename}`,
+      })) || [];
 
     const tenant = await Tenant.create({
       ...req.body,
-      documents
+      documents,
     });
 
-    res.json(tenant);
+    res.status(201).json({
+      message: 'Tenant added successfully',
+      tenant,
+    });
   } catch (error) {
-    res.status(500).json({ message: "Error adding tenant" });
+    console.error('ADD TENANT ERROR:', error);
+
+    // Sequelize validation / constraint errors
+    if (error instanceof Sequelize.ValidationError) {
+      return res.status(400).json({
+        message: error.errors.map((e) => e.message).join(', '),
+      });
+    }
+
+    if (error instanceof Sequelize.UniqueConstraintError) {
+      return res.status(400).json({
+        message: 'Duplicate entry (tenant already exists)',
+      });
+    }
+
+    res.status(500).json({
+      message: 'Error adding tenant',
+      error: error.message,
+    });
   }
 };
 
+/* =========================
+   UPDATE TENANT
+========================= */
 export const updateTenant = async (req, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
 
-    if (!tenant)
-      return res.status(404).json({ message: 'Tenant not found' });
+    if (!tenant) {
+      return res.status(404).json({
+        message: 'Tenant not found',
+      });
+    }
 
-    // new uploaded files
-    const newDocs = req.files?.map(
-      f => ({ url: `/uploads/tenants/${f.filename}` })
-    ) || [];
+    const newDocs =
+      req.files?.map((f) => ({
+        url: `/uploads/tenants/${f.filename}`,
+      })) || [];
 
     await tenant.update({
       ...req.body,
-      // replace old documents completely
-      documents: newDocs.length ? newDocs : tenant.documents
+      documents: newDocs.length ? newDocs : tenant.documents,
     });
 
-    res.json(tenant);
+    res.json({
+      message: 'Tenant updated successfully',
+      tenant,
+    });
+  } catch (error) {
+    console.error('UPDATE TENANT ERROR:', error);
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to update tenant' });
+    if (error instanceof Sequelize.ValidationError) {
+      return res.status(400).json({
+        message: error.errors.map((e) => e.message).join(', '),
+      });
+    }
+
+    res.status(500).json({
+      message: 'Failed to update tenant',
+      error: error.message,
+    });
   }
 };
 
+/* =========================
+   DELETE TENANT
+========================= */
 export const deleteTenant = async (req, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
 
-    if (!tenant)
-      return res.status(404).json({ message: 'Tenant not found' });
+    if (!tenant) {
+      return res.status(404).json({
+        message: 'Tenant not found',
+      });
+    }
 
-    tenant.documents?.forEach(f => {
+    // delete uploaded files
+    tenant.documents?.forEach((f) => {
       const filePath = path.join(
         process.cwd(),
         'uploads/tenants',
         f.url.split('/').pop()
       );
 
-      if (fs.existsSync(filePath))
+      if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
+      }
     });
 
     await tenant.destroy();
 
-    res.json({ message: 'Tenant deleted' });
+    res.json({
+      message: 'Tenant deleted successfully',
+    });
+  } catch (error) {
+    console.error('DELETE TENANT ERROR:', error);
 
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to delete tenant' });
+    res.status(500).json({
+      message: 'Failed to delete tenant',
+      error: error.message,
+    });
   }
 };
