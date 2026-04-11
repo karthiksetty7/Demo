@@ -139,8 +139,17 @@ const Tenants = () => {
           (Array.isArray(data) ? data : []).map((t) => ({
             ...t,
 
-            // 🔥 ALWAYS ensure array
-            documents: Array.isArray(t.documents) ? t.documents : [],
+            documents: (() => {
+              if (Array.isArray(t.documents)) return t.documents;
+              if (typeof t.documents === "string") {
+                try {
+                  return JSON.parse(t.documents);
+                } catch {
+                  return [];
+                }
+              }
+              return [];
+            })(),
 
             building: {
               name: t.building?.name || "",
@@ -250,36 +259,48 @@ const Tenants = () => {
         });
       }
 
-      // ✅ SAFE JSON parsing (fix for Unexpected token '<')
+      // safe parse
       let data;
       const text = await res.text();
 
       try {
         data = JSON.parse(text);
-      } catch (error) {
-        console.error("Server returned HTML instead of JSON:", text);
+      } catch {
+        console.error("Server returned HTML:", text);
         throw new Error("Server error — check backend logs");
       }
 
+      // backend error
       if (!res.ok) {
         throw new Error(data.message || "Failed to save tenant");
       }
+
+      // ✅ success popup
+      alert(
+        data.message ||
+          (editingId
+            ? "Tenant updated successfully"
+            : "Tenant added successfully"),
+      );
 
       const savedTenant = data;
 
       const mappedTenant = {
         ...savedTenant,
-        building: {
+
+        building: savedTenant.building || {
           name:
             buildings.find((b) => b.id === parseInt(savedTenant.building_id))
               ?.name || "",
         },
-        floor: {
+
+        floor: savedTenant.floor || {
           floor_number:
             floors.find((f) => f.id === parseInt(savedTenant.floor_id))
               ?.floor_number || "",
         },
-        room: {
+
+        room: savedTenant.room || {
           room_number:
             rooms.find((r) => r.id === parseInt(savedTenant.room_id))
               ?.roomNumber || "",
@@ -314,16 +335,23 @@ const Tenants = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this tenant?")) return;
+
     try {
       const res = await fetch(`${BASE_URL}/tenants/deleteTenant/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${getToken()}` },
       });
-      if (!res.ok) throw new Error("Failed to delete tenant");
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Failed to delete tenant");
+
+      alert(data.message || "Tenant deleted successfully");
+
       setTenants((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
       console.error(err);
-      alert("Failed to delete tenant");
+      alert(err.message);
     }
   };
 
