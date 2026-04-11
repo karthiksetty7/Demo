@@ -3,14 +3,7 @@ import Layout from "../../components/Layout";
 import "./index.css";
 
 const Bills = () => {
-  const [records, setRecords] = useState(() => {
-    const saved = localStorage.getItem("billRecords");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem("billRecords", JSON.stringify(records));
-  }, [records]);
+  const [records, setRecords] = useState([]);
 
   // LOGO BASE64
   const [logoBase64, setLogoBase64] = useState("");
@@ -373,8 +366,8 @@ ${isPageStart ? `<div class="page">` : ``}
 </thead>
 <tbody>
 <tr>
-<td>${record.previous_reading}</td>
-<td>${record.current_reading}</td>
+<td>${record.previous}</td>
+<td>${record.current}</td>
 <td>${record.units}</td>
 <td>${record.rate}</td>
 <td>₹ ${record.amount}</td>
@@ -407,13 +400,13 @@ setTimeout(() => window.print(), 300);
     );
   };
 
- const filteredRecords = records.filter(
+const filteredRecords = records.filter(
   (r) =>
     (filterTenant ? r.tenant_id === Number(filterTenant) : true) &&
     (filterRoom ? r.room_id === Number(filterRoom) : true) &&
     (filterBuilding ? r.building_id === Number(filterBuilding) : true) &&
     (filterMonth ? r.month === filterMonth : true) &&
-    (filterYear ? r.year.toString() === filterYear.toString() : true)
+    (filterYear ? r.year === Number(filterYear) : true),
 );
 
   // Print all filtered records
