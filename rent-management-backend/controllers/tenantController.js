@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import { Sequelize } from 'sequelize';
+import fs from "fs";
+import path from "path";
+import { Sequelize } from "sequelize";
 
 import Tenant from "../models/Tenant.js";
 import Building from "../models/Building.js";
@@ -61,28 +61,33 @@ export const getTenants = async (req, res) => {
 ========================= */
 export const addTenant = async (req, res) => {
   try {
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
+
     const documents =
       req.files?.map((f) => ({
         url: `/uploads/tenants/${f.filename}`,
       })) || [];
 
     const tenant = await Tenant.create({
-      ...req.body,
+      name: req.body.name,
+      phone: req.body.phone,
+      advance: Number(req.body.advance),
+      join_date: req.body.join_date,
+      building_id: Number(req.body.building_id),
+      floor_id: Number(req.body.floor_id),
+      room_id: Number(req.body.room_id),
       documents,
     });
 
-    const fullTenant = await Tenant.findByPk(tenant.id, {
-      include: [
-        { model: Building, as: "building", attributes: ["name"] },
-        { model: Floor, as: "floor", attributes: ["floor_number"] },
-        { model: Room, as: "room", attributes: ["room_number"] },
-      ],
-    });
-
-    res.status(201).json(fullTenant);
+    res.status(201).json(tenant);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
+    console.error("ADD TENANT ERROR:", error);
+
+    res.status(500).json({
+      message: "Failed to save tenant",
+      error: error.message,
+    });
   }
 };
 
@@ -104,10 +109,16 @@ export const updateTenant = async (req, res) => {
         url: `/uploads/tenants/${f.filename}`,
       })) || [];
 
-    await tenant.update({
-      ...req.body,
-      documents: newDocs.length ? newDocs : tenant.documents,
-    });
+   await tenant.update({
+  name: req.body.name,
+  phone: req.body.phone,
+  advance: Number(req.body.advance),
+  join_date: req.body.join_date,
+  building_id: Number(req.body.building_id),
+  floor_id: Number(req.body.floor_id),
+  room_id: Number(req.body.room_id),
+  documents: newDocs.length ? newDocs : tenant.documents,
+});
 
     // ✅ reload tenant with associations
     const updatedTenant = await Tenant.findByPk(req.params.id, {
@@ -120,7 +131,6 @@ export const updateTenant = async (req, res) => {
 
     // ✅ send tenant directly (not wrapped)
     res.json(updatedTenant);
-
   } catch (error) {
     console.error("UPDATE TENANT ERROR:", error);
 
@@ -151,9 +161,7 @@ export const deleteTenant = async (req, res) => {
     }
 
     // ✅ ensure documents is array
-    const docs = Array.isArray(tenant.documents)
-      ? tenant.documents
-      : [];
+    const docs = Array.isArray(tenant.documents) ? tenant.documents : [];
 
     // ✅ delete uploaded files safely
     for (const f of docs) {
@@ -163,7 +171,7 @@ export const deleteTenant = async (req, res) => {
         process.cwd(),
         "uploads",
         "tenants",
-        f.url.split("/").pop()
+        f.url.split("/").pop(),
       );
 
       try {
@@ -180,7 +188,6 @@ export const deleteTenant = async (req, res) => {
     res.json({
       message: "Tenant deleted successfully",
     });
-
   } catch (error) {
     console.error("DELETE TENANT ERROR:", error);
 
