@@ -13,7 +13,7 @@ export const getBills = async (req, res) => {
         { association: "floor", required: false },
         { association: "room", required: false },
       ],
-      order: [["createdAt", "DESC"]],
+      order: [['id', 'DESC']],
     });
 
     res.json(
@@ -98,7 +98,7 @@ export const getLastBill = async (req, res) => {
 
     const bill = await Bill.findOne({
       where: { tenant_id: tenantId },
-      order: [["createdAt", "DESC"]],
+      order: [["id", "DESC"]],
     });
 
     res.json(bill || {});
