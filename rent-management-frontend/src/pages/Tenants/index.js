@@ -217,14 +217,17 @@ const Tenants = () => {
       return;
 
     const formData = new FormData();
-    
+
     formData.append("name", name);
     formData.append("phone", phone);
     formData.append("advance", advance);
     formData.append("join_date", joiningDate);
-    formData.append("building_id", Number(buildingId));
-    formData.append("floor_id", Number(floorId));
-    formData.append("room_id", Number(roomId));
+
+    
+    formData.append("building_id", buildingId);
+    formData.append("floor_id", floorId);
+    formData.append("room_id", roomId);
+
     files.forEach((f) => formData.append("documents", f));
 
     try {
@@ -435,8 +438,6 @@ const Tenants = () => {
     printWindow.document.close();
   };
 
-  
-
   return (
     <Layout>
       <div className="tenant-container">
@@ -613,8 +614,6 @@ const Tenants = () => {
                   <td>
                     {(() => {
                       let docs = t.documents;
-
-                      
 
                       if (typeof docs === "string") {
                         try {
