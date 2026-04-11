@@ -1,7 +1,11 @@
-import Tenant from '../models/Tenant.js';
 import fs from 'fs';
 import path from 'path';
 import { Sequelize } from 'sequelize';
+
+import Tenant from "../models/Tenant.js";
+import Building from "../models/Building.js";
+import Floor from "../models/Floor.js";
+import Room from "../models/Room.js";
 
 /* =========================
    GET ALL TENANTS
