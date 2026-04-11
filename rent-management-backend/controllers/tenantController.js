@@ -61,8 +61,20 @@ export const getTenants = async (req, res) => {
 ========================= */
 export const addTenant = async (req, res) => {
   try {
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
+
+    const existingTenant = await Tenant.findOne({
+      where: {
+        building_id: parseInt(req.body.building_id),
+        floor_id: parseInt(req.body.floor_id),
+        room_id: parseInt(req.body.room_id),
+      },
+    });
+
+    if (existingTenant) {
+      return res.status(400).json({
+        message: "This room is already occupied",
+      });
+    }
 
     const documents = Array.isArray(req.files)
       ? req.files.map((f) => ({
@@ -82,8 +94,19 @@ export const addTenant = async (req, res) => {
     });
 
     res.status(201).json(tenant);
+
   } catch (error) {
     console.error("ADD TENANT ERROR:", error);
+
+    // 🔥 handle duplicate constraint error
+    if (
+      error.name === "SequelizeUniqueConstraintError" ||
+      error.name === "SequelizeValidationError"
+    ) {
+      return res.status(400).json({
+        message: "This room is already occupied",
+      });
+    }
 
     res.status(500).json({
       message: "Failed to save tenant",
