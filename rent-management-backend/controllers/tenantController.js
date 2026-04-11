@@ -33,7 +33,20 @@ export const getTenants = async (req, res) => {
       ],
     });
 
-    res.json(tenants);
+    // CLEAN RESPONSE (VERY IMPORTANT FIX)
+    const cleaned = tenants.map((t) => {
+      const json = t.toJSON();
+
+      return {
+        ...json,
+        documents: Array.isArray(json.documents) ? json.documents : [],
+        building: json.building || null,
+        floor: json.floor || null,
+        room: json.room || null,
+      };
+    });
+
+    res.json(cleaned);
   } catch (error) {
     console.error("GET TENANTS ERROR:", error);
     res.status(500).json({
@@ -58,30 +71,18 @@ export const addTenant = async (req, res) => {
       documents,
     });
 
-    res.status(201).json({
-      message: 'Tenant added successfully',
-      tenant,
+    const fullTenant = await Tenant.findByPk(tenant.id, {
+      include: [
+        { model: Building, as: "building", attributes: ["name"] },
+        { model: Floor, as: "floor", attributes: ["floor_number"] },
+        { model: Room, as: "room", attributes: ["room_number"] },
+      ],
     });
+
+    res.status(201).json(fullTenant);
   } catch (error) {
-    console.error('ADD TENANT ERROR:', error);
-
-    // Sequelize validation / constraint errors
-    if (error instanceof Sequelize.ValidationError) {
-      return res.status(400).json({
-        message: error.errors.map((e) => e.message).join(', '),
-      });
-    }
-
-    if (error instanceof Sequelize.UniqueConstraintError) {
-      return res.status(400).json({
-        message: 'Duplicate entry (tenant already exists)',
-      });
-    }
-
-    res.status(500).json({
-      message: 'Error adding tenant',
-      error: error.message,
-    });
+    console.error(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -94,7 +95,7 @@ export const updateTenant = async (req, res) => {
 
     if (!tenant) {
       return res.status(404).json({
-        message: 'Tenant not found',
+        message: "Tenant not found",
       });
     }
 
@@ -108,21 +109,29 @@ export const updateTenant = async (req, res) => {
       documents: newDocs.length ? newDocs : tenant.documents,
     });
 
-    res.json({
-      message: 'Tenant updated successfully',
-      tenant,
+    // ✅ reload tenant with associations
+    const updatedTenant = await Tenant.findByPk(req.params.id, {
+      include: [
+        { model: Building, as: "building", attributes: ["name"] },
+        { model: Floor, as: "floor", attributes: ["floor_number"] },
+        { model: Room, as: "room", attributes: ["room_number"] },
+      ],
     });
+
+    // ✅ send tenant directly (not wrapped)
+    res.json(updatedTenant);
+
   } catch (error) {
-    console.error('UPDATE TENANT ERROR:', error);
+    console.error("UPDATE TENANT ERROR:", error);
 
     if (error instanceof Sequelize.ValidationError) {
       return res.status(400).json({
-        message: error.errors.map((e) => e.message).join(', '),
+        message: error.errors.map((e) => e.message).join(", "),
       });
     }
 
     res.status(500).json({
-      message: 'Failed to update tenant',
+      message: "Failed to update tenant",
       error: error.message,
     });
   }
@@ -137,33 +146,46 @@ export const deleteTenant = async (req, res) => {
 
     if (!tenant) {
       return res.status(404).json({
-        message: 'Tenant not found',
+        message: "Tenant not found",
       });
     }
 
-    // delete uploaded files
-    tenant.documents?.forEach((f) => {
+    // ✅ ensure documents is array
+    const docs = Array.isArray(tenant.documents)
+      ? tenant.documents
+      : [];
+
+    // ✅ delete uploaded files safely
+    for (const f of docs) {
+      if (!f?.url) continue;
+
       const filePath = path.join(
         process.cwd(),
-        'uploads/tenants',
-        f.url.split('/').pop()
+        "uploads",
+        "tenants",
+        f.url.split("/").pop()
       );
 
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.warn("File delete warning:", err.message);
       }
-    });
+    }
 
     await tenant.destroy();
 
     res.json({
-      message: 'Tenant deleted successfully',
+      message: "Tenant deleted successfully",
     });
+
   } catch (error) {
-    console.error('DELETE TENANT ERROR:', error);
+    console.error("DELETE TENANT ERROR:", error);
 
     res.status(500).json({
-      message: 'Failed to delete tenant',
+      message: "Failed to delete tenant",
       error: error.message,
     });
   }
