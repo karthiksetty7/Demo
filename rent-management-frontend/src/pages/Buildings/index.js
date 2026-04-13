@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../../utils/api";
 import Layout from "../../components/Layout";
@@ -14,21 +14,16 @@ const Buildings = () => {
 
   // Fetch buildings
   const fetchBuildings = useCallback(async () => {
-    const data = await apiRequest(
-      "/buildings/getBuildings",
-      "GET",
-      null,
+    const data = await apiRequest({
+      endpoint: "/buildings/getBuildings",
+      method: "GET",
       navigate,
-    );
+    });
 
     if (!data) return;
 
     setBuildings(Array.isArray(data) ? data : data.data || []);
   }, [navigate]);
-
-  useEffect(() => {
-    fetchBuildings();
-  }, [fetchBuildings]);
 
   // ADD / UPDATE
   const handleSubmit = async (e) => {
@@ -45,12 +40,15 @@ const Buildings = () => {
 
     const method = editId ? "PUT" : "POST";
 
-    const payload = {
-      name: buildingName,
-      address,
-    };
-
-    const data = await apiRequest(endpoint, method, payload, navigate);
+    const data = await apiRequest({
+      endpoint,
+      method,
+      body: {
+        name: buildingName,
+        address,
+      },
+      navigate,
+    });
 
     if (!data) return;
 
@@ -81,12 +79,11 @@ const Buildings = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this building?")) return;
 
-    const data = await apiRequest(
-      `/buildings/deleteBuilding/${id}`,
-      "DELETE",
-      null,
+    const data = await apiRequest({
+      endpoint: `/buildings/deleteBuilding/${id}`,
+      method: "DELETE",
       navigate,
-    );
+    });
 
     if (!data) return;
 
