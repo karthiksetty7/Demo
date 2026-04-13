@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../../utils/api";
 import Layout from "../../components/Layout";
 import "./index.css";
-
-const BASE_URL = "https://demo-production-bf0f.up.railway.app/api";
 
 const Rooms = () => {
   const [buildings, setBuildings] = useState([]);
@@ -13,95 +13,72 @@ const Rooms = () => {
   const [roomNumber, setRoomNumber] = useState("");
   const [editId, setEditId] = useState(null);
 
-  const getToken = () => localStorage.getItem("token");
+  const navigate = useNavigate();
 
   // Fetch buildings
-  useEffect(() => {
-    const fetchBuildings = async () => {
-      const token = getToken();
-      if (!token) return;
-      try {
-        const res = await fetch(`${BASE_URL}/buildings/getBuildings`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401) {
-          alert("Session expired. Please login again.");
-          localStorage.removeItem("token");
-          return;
-        }
-        const data = await res.json();
-        setBuildings(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Failed to fetch buildings:", err);
-        setBuildings([]);
-      }
-    };
-    fetchBuildings();
-  }, []);
+  const fetchBuildings = useCallback(async () => {
+    const data = await apiRequest({
+      endpoint: "/buildings/getBuildings",
+      method: "GET",
+      navigate,
+    });
+
+    if (!data) return;
+
+    setBuildings(Array.isArray(data) ? data : data.data || []);
+  }, [navigate]);
 
   // Fetch floors
-  useEffect(() => {
-    const fetchFloors = async () => {
-      const token = getToken();
-      if (!token) return;
-      try {
-        const res = await fetch(`${BASE_URL}/floors/getFloors`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401) {
-          alert("Session expired. Please login again.");
-          localStorage.removeItem("token");
-          return;
-        }
-        const data = await res.json();
-        setFloors(
-          (Array.isArray(data) ? data : []).map((f) => ({
-            id: f.id,
-            buildingId: f.building_id,
-            buildingName: f.building?.name || "",
-            floorName: f.floor_number,
-          })),
-        );
-      } catch (err) {
-        console.error("Failed to fetch floors:", err);
-        setFloors([]);
-      }
-    };
-    fetchFloors();
-  }, []);
+  const fetchFloors = useCallback(async () => {
+    const data = await apiRequest({
+      endpoint: "/floors/getFloors",
+      method: "GET",
+      navigate,
+    });
+
+    if (!data) return;
+
+    const formatted = (Array.isArray(data) ? data : data.data || []).map(
+      (f) => ({
+        id: f.id,
+        buildingId: f.building_id,
+        buildingName: f.building?.name || "",
+        floorName: f.floor_number,
+      }),
+    );
+
+    setFloors(formatted);
+  }, [navigate]);
 
   // Fetch rooms
+  const fetchRooms = useCallback(async () => {
+    const data = await apiRequest({
+      endpoint: "/rooms/getRooms",
+      method: "GET",
+      navigate,
+    });
+
+    if (!data) return;
+
+    const formatted = (Array.isArray(data) ? data : data.data || []).map(
+      (r) => ({
+        id: r.id,
+        buildingId: r.building_id,
+        buildingName: r.building?.name || "",
+        floorId: r.floor_id,
+        floorName: r.floor?.floor_number || "",
+        roomNumber: r.room_number,
+      }),
+    );
+
+    setRooms(formatted);
+  }, [navigate]);
+
   useEffect(() => {
-    const fetchRooms = async () => {
-      const token = getToken();
-      if (!token) return;
-      try {
-        const res = await fetch(`${BASE_URL}/rooms/getRooms`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401) {
-          alert("Session expired. Please login again.");
-          localStorage.removeItem("token");
-          return;
-        }
-        const data = await res.json();
-        setRooms(
-          (Array.isArray(data) ? data : []).map((r) => ({
-            id: r.id,
-            buildingId: r.building_id,
-            buildingName: r.building?.name || "",
-            floorId: r.floor_id,
-            floorName: r.floor?.floor_number || "",
-            roomNumber: r.room_number,
-          })),
-        );
-      } catch (err) {
-        console.error("Failed to fetch rooms:", err);
-        setRooms([]);
-      }
-    };
+    fetchBuildings();
+    fetchFloors();
     fetchRooms();
-  }, []);
+  }, [fetchBuildings, fetchFloors, fetchRooms]);
 
   const filteredFloors = floors.filter(
     (f) => f.buildingId === parseInt(buildingId),
@@ -110,87 +87,36 @@ const Rooms = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const token = getToken();
-    if (!token) {
-      alert("Please login.");
+    if (!buildingId || !floorId || !roomNumber) {
+      alert("Please fill all fields");
       return;
     }
 
-    if (!buildingId || !floorId || !roomNumber) return;
+    const endpoint = editId ? `/rooms/updateRoom/${editId}` : `/rooms/addRoom`;
 
-    const payload = {
-      building_id: parseInt(buildingId),
-      floor_id: parseInt(floorId),
-      room_number: roomNumber,
-    };
+    const method = editId ? "PUT" : "POST";
 
-    try {
-      let res = await fetch(
-        editId
-          ? `${BASE_URL}/rooms/updateRoom/${editId}`
-          : `${BASE_URL}/rooms/addRoom`,
-        {
-          method: editId ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        },
-      );
+    const data = await apiRequest({
+      endpoint,
+      method,
+      body: {
+        building_id: parseInt(buildingId),
+        floor_id: parseInt(floorId),
+        room_number: roomNumber,
+      },
+      navigate,
+    });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (err) {
-        data = {};
-      }
+    if (!data) return;
 
-      // 🔥 ALWAYS HANDLE ERROR FIRST
-      if (!res.ok) {
-        alert(data.message || data.error || "Something went wrong");
-        return;
-      }
+    alert(data.message || "Success");
 
-      // ✅ SUCCESS CASE
-      if (editId) {
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === editId
-              ? {
-                  ...r,
-                  buildingId: parseInt(buildingId),
-                  buildingName: buildings.find(
-                    (b) => b.id === parseInt(buildingId),
-                  )?.name,
-                  floorId: parseInt(floorId),
-                  floorName: floors.find((f) => f.id === parseInt(floorId))
-                    ?.floorName,
-                  roomNumber,
-                }
-              : r,
-          ),
-        );
-        setEditId(null);
-      } else {
-        const newRoom = {
-          id: data.room.id,
-          buildingId: data.room.building_id,
-          buildingName: buildings.find((b) => b.id === data.room.building_id)
-            ?.name,
-          floorId: data.room.floor_id,
-          floorName: floors.find((f) => f.id === data.room.floor_id)?.floorName,
-          roomNumber: data.room.room_number,
-        };
+    setEditId(null);
+    setBuildingId("");
+    setFloorId("");
+    setRoomNumber("");
 
-        setRooms((prev) => [...prev, newRoom]);
-      }
-
-      handleCancel();
-    } catch (err) {
-      console.error("Failed:", err);
-      alert("Network error. Please try again.");
-    }
+    fetchRooms(); // ✅ instead of manual state update
   };
 
   const handleEdit = (room) => {
@@ -201,24 +127,19 @@ const Rooms = () => {
   };
 
   const handleDelete = async (id) => {
-    const token = getToken();
-    if (!token) return;
     if (!window.confirm("Delete this room?")) return;
 
-    try {
-      const res = await fetch(`${BASE_URL}/rooms/deleteRoom/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        alert("Token invalid. Please login again.");
-        localStorage.removeItem("token");
-        return;
-      }
-      setRooms((prev) => prev.filter((r) => r.id !== id));
-    } catch (err) {
-      console.error("Failed to delete room:", err);
-    }
+    const data = await apiRequest({
+      endpoint: `/rooms/deleteRoom/${id}`,
+      method: "DELETE",
+      navigate,
+    });
+
+    if (!data) return;
+
+    alert(data.message || "Deleted successfully");
+
+    fetchRooms();
   };
 
   const handleCancel = () => {
