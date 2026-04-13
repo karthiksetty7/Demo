@@ -7,9 +7,7 @@ const RentEntry = sequelize.define(
   {
     tenant_id: { type: DataTypes.INTEGER, allowNull: false },
 
-    building: DataTypes.STRING,
-    room: DataTypes.STRING,
-    month: DataTypes.STRING,
+    month: { type: DataTypes.STRING, allowNull: false },
 
     rent: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
     water: { type: DataTypes.DECIMAL(10, 2), defaultValue: 300 },
@@ -20,6 +18,7 @@ const RentEntry = sequelize.define(
     total: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
     paid: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
     advance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+
     status: { type: DataTypes.STRING, defaultValue: "not vacated" },
     due: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
   },
@@ -29,6 +28,13 @@ const RentEntry = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
+
+    indexes: [
+      {
+        unique: true,
+        fields: ["tenant_id", "month"],
+      },
+    ],
   }
 );
 
