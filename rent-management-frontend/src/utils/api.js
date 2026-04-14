@@ -16,13 +16,19 @@ export const apiRequest = async ({
   }
 
   try {
+    const isFormData = body instanceof FormData;
+
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       method,
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
       },
-      body: body ? JSON.stringify(body) : null,
+      body: isFormData
+        ? body
+        : body
+        ? JSON.stringify(body)
+        : null,
     });
 
     // ✅ Handle 401
@@ -38,21 +44,19 @@ export const apiRequest = async ({
       data = {};
     }
 
-    // ❗ IMPORTANT CHANGE HERE
+    // ❗ Handle API errors
     if (!res.ok) {
       console.log("❌ API ERROR RESPONSE:", data);
 
-      // ✅ Show backend message (NOT network error)
       alert(data.message || data.error || "Something went wrong");
 
-      return null; // ❗ DO NOT THROW
+      return null;
     }
 
     return data;
   } catch (error) {
     console.error("❌ Network Error:", error);
 
-    // ✅ Only real network error here
     alert("Server not reachable. Check internet or backend.");
 
     return null;
