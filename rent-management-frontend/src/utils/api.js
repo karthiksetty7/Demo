@@ -31,7 +31,7 @@ export const apiRequest = async ({
         : null,
     });
 
-    // ✅ Handle 401
+    // ✅ Handle unauthorized
     if (res.status === 401) {
       handleAuthError(navigate);
       return null;
@@ -44,16 +44,22 @@ export const apiRequest = async ({
       data = {};
     }
 
-    // ❗ Handle API errors
-    if (!res.ok) {
+    // ❗ Handle BOTH HTTP errors + backend errors
+    if (!res.ok || data.success === false) {
       console.log("❌ API ERROR RESPONSE:", data);
 
-      alert(data.message || data.error || "Something went wrong");
+      alert(
+        data.message ||
+        data.error ||
+        "Something went wrong. Please try again."
+      );
 
       return null;
     }
 
+    // ✅ SUCCESS RESPONSE
     return data;
+
   } catch (error) {
     console.error("❌ Network Error:", error);
 
