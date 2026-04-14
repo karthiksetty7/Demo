@@ -5,7 +5,6 @@ import "./index.css";
 
 const BASE_URL = "https://demo-production-bf0f.up.railway.app/api";
 
-
 const Tenants = () => {
   const [buildings, setBuildings] = useState([]);
   const [floors, setFloors] = useState([]);
@@ -424,14 +423,14 @@ const Tenants = () => {
 
   // Generate HTML for a single tenant
   const generateTenantHTML = (tenant) => {
-  const buildingName = tenant.building?.name || "";
-  const floorName = tenant.floor?.floor_number || "";
-  const roomNumber = tenant.room?.room_number || "";
+    const buildingName = tenant.building?.name || "";
+    const floorName = tenant.floor?.floor_number || "";
+    const roomNumber = tenant.room?.room_number || "";
 
-  const filesHtml = tenant.documents
-    ? tenant.documents
-        .map(
-          (f) => `
+    const filesHtml = tenant.documents
+      ? tenant.documents
+          .map(
+            (f) => `
     <div class="full-page">
       ${
         f.url.match(/\.(jpg|jpeg|png|gif)$/i)
@@ -440,11 +439,11 @@ const Tenants = () => {
       }
     </div>
   `,
-        )
-        .join("")
-    : "";
+          )
+          .join("")
+      : "";
 
-  return `
+    return `
   <div class="page">
     <div class="page-border">
       <div class="invoice">
@@ -467,7 +466,7 @@ const Tenants = () => {
 
   ${filesHtml}
 `;
-};
+  };
 
   // Print all filtered tenants with building check
   const printAllTenants = (filteredTenants, selectedBuilding) => {
@@ -686,30 +685,18 @@ const Tenants = () => {
                   <td>{t.join_date}</td>
 
                   <td>
-                    {(() => {
-                      let docs = t.documents;
-
-                      if (typeof docs === "string") {
-                        try {
-                          docs = JSON.parse(docs);
-                        } catch {
-                          docs = [];
-                        }
-                      }
-
-                      return Array.isArray(docs) && docs.length > 0
-                        ? docs.map((f, i) => (
-                            <a
-                              key={i}
-                              href={f.url}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                            >
-                              View
-                            </a>
-                          ))
-                        : "No Docs";
-                    })()}
+                    {Array.isArray(t.documents) && t.documents.length > 0
+                      ? t.documents.map((f, i) => (
+                          <a
+                            key={i}
+                            href={f.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                          >
+                            View
+                          </a>
+                        ))
+                      : "No Docs"}
                   </td>
 
                   <td>
