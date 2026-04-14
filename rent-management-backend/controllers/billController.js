@@ -4,11 +4,27 @@ import Building from "../models/Building.js";
 import Floor from "../models/Floor.js";
 import Room from "../models/Room.js";
 
+/* ================= BILL NUMBER ================= */
 const generateBillNumber = () => {
   return "BILL-" + Date.now();
 };
 
-/* ================= GET ALL ================= */
+/* ================= NORMALIZER ================= */
+const normalize = (body) => ({
+  tenant_id: Number(body.tenant_id),
+
+  previous_reading: Number(body.previous_reading),
+  current_reading: Number(body.current_reading),
+  units: Number(body.units),
+
+  rate: Number(body.rate),
+  amount: Number(body.amount),
+
+  month: body.month,
+  year: Number(body.year),
+});
+
+/* ================= GET ALL BILLS ================= */
 export const getBills = async (req, res) => {
   try {
     const bills = await Bill.findAll({
@@ -19,19 +35,23 @@ export const getBills = async (req, res) => {
           attributes: ["id", "name"],
           include: [
             {
-              model: Building,
-              as: "building",
-              attributes: ["id", "name"],
-            },
-            {
               model: Room,
               as: "room",
               attributes: ["id", "room_number"],
-            },
-            {
-              model: Floor,
-              as: "floor",
-              attributes: ["id", "floor_number"],
+              include: [
+                {
+                  model: Floor,
+                  as: "floor",
+                  attributes: ["id", "floor_number"],
+                  include: [
+                    {
+                      model: Building,
+                      as: "building",
+                      attributes: ["id", "name"],
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -39,29 +59,29 @@ export const getBills = async (req, res) => {
       order: [["id", "DESC"]],
     });
 
-    // ✅ NO manual mapping → send clean nested data
-    res.json({
+    return res.json({
       success: true,
       data: bills,
     });
 
   } catch (err) {
-    console.error("GET BILLS ERROR:", err);
-    res.status(500).json({
+    console.error("❌ GET BILLS ERROR:", err);
+
+    return res.status(500).json({
       success: false,
-      message: "Error fetching bills",
+      message: "Failed to fetch bills",
       error: err.message,
     });
   }
 };
 
-/* ================= CREATE ================= */
+/* ================= CREATE BILL ================= */
 export const addBill = async (req, res) => {
   try {
     const data = normalize(req.body);
 
-    // ✅ CHECK DUPLICATE BILL (IMPORTANT)
-    const existingBill = await Bill.findOne({
+    // 🔥 DUPLICATE CHECK (backend safe)
+    const existing = await Bill.findOne({
       where: {
         tenant_id: data.tenant_id,
         month: data.month,
@@ -69,10 +89,10 @@ export const addBill = async (req, res) => {
       },
     });
 
-    if (existingBill) {
+    if (existing) {
       return res.status(400).json({
         success: false,
-        message: "Bill already exists for this tenant, month, and year",
+        message: "Bill already exists for this tenant, month and year",
       });
     }
 
@@ -89,7 +109,7 @@ export const addBill = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("CREATE BILL ERROR:", err);
+    console.error("❌ CREATE BILL ERROR:", err);
 
     return res.status(500).json({
       success: false,
@@ -99,7 +119,7 @@ export const addBill = async (req, res) => {
   }
 };
 
-/* ================= UPDATE ================= */
+/* ================= UPDATE BILL ================= */
 export const updateBill = async (req, res) => {
   try {
     const { id } = req.params;
@@ -115,8 +135,8 @@ export const updateBill = async (req, res) => {
 
     const data = normalize(req.body);
 
-    // ✅ PREVENT DUPLICATE ON UPDATE
-    const existingBill = await Bill.findOne({
+    // 🔥 Prevent duplicate on update
+    const duplicate = await Bill.findOne({
       where: {
         tenant_id: data.tenant_id,
         month: data.month,
@@ -124,10 +144,10 @@ export const updateBill = async (req, res) => {
       },
     });
 
-    if (existingBill && existingBill.id !== Number(id)) {
+    if (duplicate && duplicate.id !== Number(id)) {
       return res.status(400).json({
         success: false,
-        message: "Another bill already exists for this month",
+        message: "Another bill already exists for this month and tenant",
       });
     }
 
@@ -140,7 +160,7 @@ export const updateBill = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("UPDATE BILL ERROR:", err);
+    console.error("❌ UPDATE BILL ERROR:", err);
 
     return res.status(500).json({
       success: false,
@@ -150,7 +170,7 @@ export const updateBill = async (req, res) => {
   }
 };
 
-/* ================= DELETE ================= */
+/* ================= DELETE BILL ================= */
 export const deleteBill = async (req, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id);
@@ -170,7 +190,7 @@ export const deleteBill = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("DELETE BILL ERROR:", err);
+    console.error("❌ DELETE BILL ERROR:", err);
 
     return res.status(500).json({
       success: false,
@@ -180,7 +200,7 @@ export const deleteBill = async (req, res) => {
   }
 };
 
-/* ================= LAST BILL ================= */
+/* ================= GET LAST BILL ================= */
 export const getLastBill = async (req, res) => {
   try {
     const { tenantId } = req.query;
@@ -192,28 +212,16 @@ export const getLastBill = async (req, res) => {
 
     return res.json({
       success: true,
-      data: bill || {},
+      data: bill || null,
     });
 
   } catch (err) {
+    console.error("❌ LAST BILL ERROR:", err);
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch last bill",
+      error: err.message,
     });
   }
 };
-
-/* ================= NORMALIZER ================= */
-const normalize = (body) => ({
-  tenant_id: Number(body.tenant_id),
-
-  previous_reading: Number(body.previous_reading),
-  current_reading: Number(body.current_reading),
-  units: Number(body.units),
-
-  rate: Number(body.rate),
-  amount: Number(body.amount),
-
-  month: body.month,
-  year: Number(body.year),
-});
