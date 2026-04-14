@@ -1,23 +1,37 @@
-import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/db.js';
+import { DataTypes } from "sequelize";
+import { sequelize } from "../config/db.js";
 
-const Building = sequelize.define('Building', {
-  name: { 
-    type: DataTypes.STRING, 
-    allowNull: false,
-    unique: true,   // unique building name 
-    validate: {
-      notEmpty: true
-    }
+const Building = sequelize.define(
+  "Building",
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: {
+        notEmpty: true,
+      },
+    },
+
+    address: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: {
+        notEmpty: true,
+      },
+    },
   },
-  address: { 
-    type: DataTypes.STRING, 
-    allowNull: false,
-    unique: true, //  unique address
-    validate: {
-      notEmpty: true
-    }
-  },
-});
+  {
+    tableName: "Buildings",
+    timestamps: true,
+  }
+);
 
 export default Building;
