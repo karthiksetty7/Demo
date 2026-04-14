@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect , useCallback} from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../../utils/api";
 import Layout from "../../components/Layout";
@@ -29,91 +29,90 @@ const Tenants = () => {
 
   // Fetch Buildings
   const fetchBuildings = useCallback(async () => {
-  const data = await apiRequest({
-    endpoint: "/buildings/getBuildings",
-    method: "GET",
-    navigate,
-  });
+    const data = await apiRequest({
+      endpoint: "/buildings/getBuildings",
+      method: "GET",
+      navigate,
+    });
 
-  if (!data) return;
+    if (!data) return;
 
-  setBuildings(Array.isArray(data) ? data : data.data || []);
-}, [navigate]);
+    setBuildings(Array.isArray(data) ? data : data.data || []);
+  }, [navigate]);
 
   // Fetch Floors
   const fetchFloors = useCallback(async () => {
-  const data = await apiRequest({
-    endpoint: "/floors/getFloors",
-    method: "GET",
-    navigate,
-  });
+    const data = await apiRequest({
+      endpoint: "/floors/getFloors",
+      method: "GET",
+      navigate,
+    });
 
-  if (!data) return;
+    if (!data) return;
 
-  setFloors(
-    (Array.isArray(data) ? data : []).map((f) => ({
-      id: f.id,
-      buildingId: f.building_id,
-      buildingName: f.building?.name || "",
-      floorName: f.floor_number,
-    }))
-  );
-}, [navigate]);
+    setFloors(
+      (Array.isArray(data) ? data : []).map((f) => ({
+        id: f.id,
+        buildingId: f.building_id,
+        buildingName: f.building?.name || "",
+        floorName: f.floor_number,
+      })),
+    );
+  }, [navigate]);
 
   // Fetch Rooms
   const fetchRooms = useCallback(async () => {
-  const data = await apiRequest({
-    endpoint: "/rooms/getRooms",
-    method: "GET",
-    navigate,
-  });
+    const data = await apiRequest({
+      endpoint: "/rooms/getRooms",
+      method: "GET",
+      navigate,
+    });
 
-  if (!data) return;
+    if (!data) return;
 
-  setRooms(
-    (Array.isArray(data) ? data : []).map((r) => ({
-      id: r.id,
-      buildingId: r.building_id,
-      buildingName: r.building?.name || "",
-      floorId: r.floor_id,
-      floorName: r.floor?.floor_number || "",
-      roomNumber: r.room_number,
-    }))
-  );
-}, [navigate]);
+    setRooms(
+      (Array.isArray(data) ? data : []).map((r) => ({
+        id: r.id,
+        buildingId: r.building_id,
+        buildingName: r.building?.name || "",
+        floorId: r.floor_id,
+        floorName: r.floor?.floor_number || "",
+        roomNumber: r.room_number,
+      })),
+    );
+  }, [navigate]);
 
   // Fetch Tenants
   const fetchTenants = useCallback(async () => {
-  const data = await apiRequest({
-    endpoint: "/tenants/getTenants",
-    method: "GET",
-    navigate,
-  });
+    const data = await apiRequest({
+      endpoint: "/tenants/getTenants",
+      method: "GET",
+      navigate,
+    });
 
-  if (!data) return;
+    if (!data) return;
 
-  setTenants(
-    (Array.isArray(data) ? data : []).map((t) => ({
-      ...t,
-      documents: Array.isArray(t.documents)
-        ? t.documents
-        : typeof t.documents === "string"
-        ? JSON.parse(t.documents)
-        : [],
-      building: { name: t.building?.name || "" },
-      floor: { floor_number: t.floor?.floor_number || "" },
-      room: { room_number: t.room?.room_number || "" },
-    }))
-  );
-}, [navigate]);
+    setTenants(
+      (Array.isArray(data) ? data : []).map((t) => ({
+        ...t,
+        documents: Array.isArray(t.documents)
+          ? t.documents
+          : typeof t.documents === "string"
+            ? JSON.parse(t.documents)
+            : [],
+        building: { name: t.building?.name || "" },
+        floor: { floor_number: t.floor?.floor_number || "" },
+        room: { room_number: t.room?.room_number || "" },
+      })),
+    );
+  }, [navigate]);
 
-
-useEffect(() => {
-  fetchBuildings();
-  fetchFloors();
-  fetchRooms();
-  fetchTenants();
-}, [fetchBuildings, fetchFloors, fetchRooms, fetchTenants]);
+  useEffect(() => {
+    fetchBuildings();
+    fetchFloors();
+    fetchRooms();
+    fetchTenants();
+  }, [fetchBuildings, fetchFloors, fetchRooms, fetchTenants]);
 
   const filteredFloors = floors.filter(
     (f) => f.buildingId === parseInt(buildingId),
@@ -154,55 +153,61 @@ useEffect(() => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!validate()) return;
+    // ✅ Validation
+    if (!validate()) return;
 
-  if (
-    !buildingId ||
-    !floorId ||
-    !roomId ||
-    !name ||
-    !phone ||
-    !advance ||
-    !joiningDate
-  ) {
-    alert("Please fill all fields");
-    return;
-  }
+    if (
+      !buildingId ||
+      !floorId ||
+      !roomId ||
+      !name ||
+      !phone ||
+      !advance ||
+      !joiningDate
+    ) {
+      alert("Please fill all fields");
+      return;
+    }
 
-  const formData = new FormData();
-  formData.append("name", name);
-  formData.append("phone", phone);
-  formData.append("advance", advance);
-  formData.append("join_date", joiningDate);
-  formData.append("building_id", buildingId);
-  formData.append("floor_id", floorId);
-  formData.append("room_id", roomId);
+    // ✅ Prepare FormData
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("phone", phone);
+    formData.append("advance", advance);
+    formData.append("join_date", joiningDate);
+    formData.append("building_id", buildingId);
+    formData.append("floor_id", floorId);
+    formData.append("room_id", roomId);
 
-  files.forEach((f) => formData.append("documents", f));
+    files.forEach((file) => formData.append("documents", file));
 
-  const endpoint = editingId
-    ? `/tenants/updateTenant/${editingId}`
-    : `/tenants/addTenant`;
+    // ✅ Decide endpoint
+    const endpoint = editingId
+      ? `/tenants/updateTenant/${editingId}`
+      : `/tenants/addTenant`;
 
-  const method = editingId ? "PUT" : "POST";
+    const method = editingId ? "PUT" : "POST";
 
-  const data = await apiRequest({
-    endpoint,
-    method,
-    body: formData,
-    navigate,
-  });
 
-  if (!data) return;
+    const data = await apiRequest({
+      endpoint,
+      method,
+      body: formData,
+      navigate,
+    });
 
-  alert(data.message || "Success");
+    if (!data) return;
 
-  fetchTenants();
-  handleCancel();
-};
+    // ✅ SUCCESS MESSAGE (from backend)
+    alert(data.message);
 
+    // ✅ Refresh latest data from backend 
+    fetchTenants();
+    
+    handleCancel();
+  };
   const handleEdit = (tenant) => {
     setEditingId(tenant.id);
     setName(tenant.name);
@@ -217,20 +222,20 @@ useEffect(() => {
   };
 
   const handleDelete = async (id) => {
-  if (!window.confirm("Are you sure you want to delete this tenant?")) return;
+    if (!window.confirm("Are you sure you want to delete this tenant?")) return;
 
-  const data = await apiRequest({
-    endpoint: `/tenants/deleteTenant/${id}`,
-    method: "DELETE",
-    navigate,
-  });
+    const data = await apiRequest({
+      endpoint: `/tenants/deleteTenant/${id}`,
+      method: "DELETE",
+      navigate,
+    });
 
-  if (!data) return;
+    if (!data) return;
 
-  alert(data.message || "Deleted successfully");
+    alert(data.message || "Deleted successfully");
 
-  fetchTenants();
-};
+    fetchTenants();
+  };
 
   const handleCancel = () => {
     setEditingId(null);
