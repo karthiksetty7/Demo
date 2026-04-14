@@ -11,7 +11,7 @@ export const getRentEntries = async (req, res) => {
         {
           model: Tenant,
           as: "tenant",
-          attributes: ["id", "name"],
+          required: true,
           include: [
             {
               model: Building,
@@ -26,13 +26,31 @@ export const getRentEntries = async (req, res) => {
           ],
         },
       ],
-      order: [["created_at", "DESC"]],
+      order: [["created_at", "ASC"]],
     });
 
-    res.json(entries);
+    const formatted = entries.map((e) => {
+      const t = e.tenant;
+
+      return {
+        ...e.toJSON(),
+        building: t?.building?.name || "N/A",
+        room: t?.room?.room_number || "N/A",
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Rent entries fetched successfully",
+      count: formatted.length,
+      data: formatted,
+    });
+
   } catch (error) {
-    console.log("GET ERROR:", error);
-    res.status(500).json({
+    console.error("GET RENT ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
       message: "Failed to fetch rent entries",
       error: error.message,
     });
@@ -44,7 +62,6 @@ export const createRentEntry = async (req, res) => {
   try {
     const data = normalize(req.body);
 
-    // 🔥 GET TENANT WITH RELATIONS
     const tenant = await Tenant.findByPk(data.tenant_id, {
       include: [
         { model: Building, as: "building", attributes: ["name"] },
@@ -54,15 +71,11 @@ export const createRentEntry = async (req, res) => {
 
     if (!tenant) {
       return res.status(404).json({
+        success: false,
         message: "Tenant not found",
       });
     }
 
-    // 🔥 FORCE CORRECT BUILDING & ROOM
-    data.building = tenant.building?.name || "";
-    data.room = tenant.room?.room_number || "";
-
-    // 🔥 DUPLICATE CHECK
     const existing = await RentEntry.findOne({
       where: {
         tenant_id: data.tenant_id,
@@ -72,21 +85,24 @@ export const createRentEntry = async (req, res) => {
 
     if (existing) {
       return res.status(400).json({
+        success: false,
         message: "Rent already added for this tenant and month",
       });
     }
 
     const entry = await RentEntry.create(data);
 
-    res.status(201).json({
+    return res.status(201).json({
+      success: true,
       message: "Rent entry created successfully",
       data: entry,
     });
 
   } catch (error) {
-    console.log("CREATE ERROR:", error);
+    console.error("CREATE ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
+      success: false,
       message: "Failed to create rent entry",
       error: error.message,
     });
@@ -125,7 +141,6 @@ export const updateRentEntry = async (req, res) => {
       message: "Rent entry updated successfully",
       data: updated,
     });
-
   } catch (error) {
     console.log("UPDATE ERROR:", error);
 
@@ -152,7 +167,6 @@ export const deleteRentEntry = async (req, res) => {
     res.json({
       message: "Rent entry deleted successfully",
     });
-
   } catch (error) {
     console.log("DELETE ERROR:", error);
 
