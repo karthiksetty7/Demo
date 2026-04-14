@@ -1,6 +1,5 @@
 import { Sequelize } from "sequelize";
 import streamifier from "streamifier";
-
 import cloudinary from "../config/cloudinary.js";
 
 import Tenant from "../models/Tenant.js";
@@ -16,29 +15,14 @@ export const getTenants = async (req, res) => {
     const tenants = await Tenant.findAll({
       order: [["id", "DESC"]],
       include: [
-        {
-          model: Building,
-          as: "building",
-          attributes: ["name"],
-        },
-        {
-          model: Floor,
-          as: "floor",
-          attributes: ["floor_number"],
-        },
-        {
-          model: Room,
-          as: "room",
-          attributes: ["room_number"],
-        },
+        { model: Building, as: "building", attributes: ["name"] },
+        { model: Floor, as: "floor", attributes: ["floor_number"] },
+        { model: Room, as: "room", attributes: ["room_number"] },
       ],
     });
 
     const cleaned = tenants.map((t) => {
       const json = t.toJSON();
-
-      // ✅ FIX: log inside scope
-      console.log("RAW DOCUMENTS:", json.documents);
 
       return {
         ...json,
@@ -54,39 +38,47 @@ export const getTenants = async (req, res) => {
       };
     });
 
-    res.json(cleaned);
+    return res.status(200).json({
+      success: true,
+      message: "Tenants fetched successfully",
+      count: cleaned.length,
+      data: cleaned,
+    });
+
   } catch (error) {
     console.error("GET TENANTS ERROR:", error);
-    res.status(500).json({
-      message: "Error fetching tenants",
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch tenants",
       error: error.message,
     });
   }
 };
-
-
-
 
 /* =========================
    ADD TENANT
 ========================= */
 export const addTenant = async (req, res) => {
   try {
+    const { building_id, floor_id, room_id } = req.body;
+
     const existingTenant = await Tenant.findOne({
       where: {
-        building_id: parseInt(req.body.building_id),
-        floor_id: parseInt(req.body.floor_id),
-        room_id: parseInt(req.body.room_id),
+        building_id: parseInt(building_id),
+        floor_id: parseInt(floor_id),
+        room_id: parseInt(room_id),
       },
     });
 
     if (existingTenant) {
       return res.status(400).json({
+        success: false,
         message: "This room is already occupied",
       });
     }
 
-    // ✅ Upload helper
+    // Upload helper
     const uploadToCloudinary = (fileBuffer) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -102,11 +94,11 @@ export const addTenant = async (req, res) => {
 
     let documents = [];
 
-    if (req.files && req.files.length > 0) {
+    if (req.files?.length > 0) {
       documents = await Promise.all(
         req.files.map(async (file) => {
           const result = await uploadToCloudinary(file.buffer);
-          return { url: result.secure_url }; // ✅ store full URL
+          return { url: result.secure_url };
         })
       );
     }
@@ -116,18 +108,24 @@ export const addTenant = async (req, res) => {
       phone: req.body.phone,
       advance: parseFloat(req.body.advance),
       join_date: req.body.join_date,
-      building_id: parseInt(req.body.building_id),
-      floor_id: parseInt(req.body.floor_id),
-      room_id: parseInt(req.body.room_id),
+      building_id: parseInt(building_id),
+      floor_id: parseInt(floor_id),
+      room_id: parseInt(room_id),
       documents,
     });
 
-    res.status(201).json(tenant);
+    return res.status(201).json({
+      success: true,
+      message: "Tenant added successfully",
+      tenant,
+    });
 
   } catch (error) {
     console.error("ADD TENANT ERROR:", error);
-    res.status(500).json({
-      message: "Failed to save tenant",
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add tenant",
       error: error.message,
     });
   }
@@ -142,11 +140,11 @@ export const updateTenant = async (req, res) => {
 
     if (!tenant) {
       return res.status(404).json({
+        success: false,
         message: "Tenant not found",
       });
     }
 
-    // ✅ Upload helper
     const uploadToCloudinary = (fileBuffer) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -162,7 +160,7 @@ export const updateTenant = async (req, res) => {
 
     let newDocs = [];
 
-    if (req.files && req.files.length > 0) {
+    if (req.files?.length > 0) {
       newDocs = await Promise.all(
         req.files.map(async (file) => {
           const result = await uploadToCloudinary(file.buffer);
@@ -190,11 +188,17 @@ export const updateTenant = async (req, res) => {
       ],
     });
 
-    res.json(updatedTenant);
+    return res.status(200).json({
+      success: true,
+      message: "Tenant updated successfully",
+      tenant: updatedTenant,
+    });
 
   } catch (error) {
     console.error("UPDATE TENANT ERROR:", error);
-    res.status(500).json({
+
+    return res.status(500).json({
+      success: false,
       message: "Failed to update tenant",
       error: error.message,
     });
@@ -210,18 +214,18 @@ export const deleteTenant = async (req, res) => {
 
     if (!tenant) {
       return res.status(404).json({
+        success: false,
         message: "Tenant not found",
       });
     }
 
     const docs = Array.isArray(tenant.documents) ? tenant.documents : [];
 
-    // ✅ DELETE FROM CLOUDINARY
+    // Delete from Cloudinary
     for (const f of docs) {
       if (!f?.url) continue;
 
       try {
-        // Extract public_id correctly
         const parts = f.url.split("/");
         const fileName = parts.pop();
         const folder = parts.pop();
@@ -235,13 +239,16 @@ export const deleteTenant = async (req, res) => {
 
     await tenant.destroy();
 
-    res.json({
+    return res.status(200).json({
+      success: true,
       message: "Tenant deleted successfully",
     });
 
   } catch (error) {
     console.error("DELETE TENANT ERROR:", error);
-    res.status(500).json({
+
+    return res.status(500).json({
+      success: false,
       message: "Failed to delete tenant",
       error: error.message,
     });
