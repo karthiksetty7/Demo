@@ -12,40 +12,42 @@ import Room from "../models/Room.js";
    GET ALL TENANTS
 ========================= */
 export const getTenants = async (req, res) => {
-  console.log("RAW DOCUMENTS:", json.documents);
   try {
     const tenants = await Tenant.findAll({
       order: [["id", "DESC"]],
       include: [
-        { model: Building, as: "building", attributes: ["name"] },
-        { model: Floor, as: "floor", attributes: ["floor_number"] },
-        { model: Room, as: "room", attributes: ["room_number"] },
+        {
+          model: Building,
+          as: "building",
+          attributes: ["name"],
+        },
+        {
+          model: Floor,
+          as: "floor",
+          attributes: ["floor_number"],
+        },
+        {
+          model: Room,
+          as: "room",
+          attributes: ["room_number"],
+        },
       ],
     });
 
     const cleaned = tenants.map((t) => {
       const json = t.toJSON();
 
+      // ✅ FIX: log inside scope
+      console.log("RAW DOCUMENTS:", json.documents);
+
       return {
         ...json,
-
-        // ✅ FIXED DOCUMENTS PARSING
-        documents: (() => {
-          let docs = json.documents;
-
-          if (!docs) return [];
-
-          if (typeof docs === "string") {
-            try {
-              docs = JSON.parse(docs);
-            } catch {
-              return [];
-            }
-          }
-
-          return Array.isArray(docs) ? docs : [];
-        })(),
-
+        documents:
+          typeof json.documents === "string"
+            ? JSON.parse(json.documents)
+            : Array.isArray(json.documents)
+            ? json.documents
+            : [],
         building: json.building || null,
         floor: json.floor || null,
         room: json.room || null,
