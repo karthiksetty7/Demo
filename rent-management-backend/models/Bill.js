@@ -68,9 +68,22 @@ const Bill = sequelize.define(
   }
 );
 
+// =========================
+// Associations (IMPORTANT)
+// =========================
+
+// Bill → Tenant
 Bill.belongsTo(Tenant, {
   foreignKey: "tenant_id",
   as: "tenant",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+// Tenant → Bills
+Tenant.hasMany(Bill, {
+  foreignKey: "tenant_id",
+  as: "bills",
 });
 
 export default Bill;
