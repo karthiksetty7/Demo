@@ -9,23 +9,13 @@ import {
   deleteTenant
 } from '../controllers/tenantController.js';
 
-// ✅ NEW IMPORTS
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import cloudinary from "../config/cloudinary.js";
-
 const router = express.Router();
 
-// Protect all routes
+// Protect routes
 router.use(protect);
 
-// ✅ CLOUDINARY STORAGE
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "tenants",
-    allowed_formats: ["jpg", "png", "jpeg", "pdf"],
-  },
-});
+// ✅ MEMORY STORAGE (IMPORTANT)
+const storage = multer.memoryStorage();
 
 const upload = multer({ storage });
 
