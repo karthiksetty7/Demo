@@ -1,6 +1,7 @@
-import fs from "fs";
-import path from "path";
 import { Sequelize } from "sequelize";
+import streamifier from "streamifier";
+
+import cloudinary from "../config/cloudinary.js";
 
 import Tenant from "../models/Tenant.js";
 import Building from "../models/Building.js";
@@ -33,7 +34,6 @@ export const getTenants = async (req, res) => {
       ],
     });
 
-    // CLEAN RESPONSE (VERY IMPORTANT FIX)
     const cleaned = tenants.map((t) => {
       const json = t.toJSON();
 
@@ -61,7 +61,6 @@ export const getTenants = async (req, res) => {
 ========================= */
 export const addTenant = async (req, res) => {
   try {
-
     const existingTenant = await Tenant.findOne({
       where: {
         building_id: parseInt(req.body.building_id),
@@ -76,11 +75,30 @@ export const addTenant = async (req, res) => {
       });
     }
 
-    const documents = Array.isArray(req.files)
-      ? req.files.map((f) => ({
-          url: `/uploads/tenants/${f.filename}`,
-        }))
-      : [];
+    // ✅ Upload helper
+    const uploadToCloudinary = (fileBuffer) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "tenants" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        streamifier.createReadStream(fileBuffer).pipe(stream);
+      });
+    };
+
+    let documents = [];
+
+    if (req.files && req.files.length > 0) {
+      documents = await Promise.all(
+        req.files.map(async (file) => {
+          const result = await uploadToCloudinary(file.buffer);
+          return { url: result.secure_url }; // ✅ store full URL
+        })
+      );
+    }
 
     const tenant = await Tenant.create({
       name: req.body.name,
@@ -97,17 +115,6 @@ export const addTenant = async (req, res) => {
 
   } catch (error) {
     console.error("ADD TENANT ERROR:", error);
-
-    // 🔥 handle duplicate constraint error
-    if (
-      error.name === "SequelizeUniqueConstraintError" ||
-      error.name === "SequelizeValidationError"
-    ) {
-      return res.status(400).json({
-        message: "This room is already occupied",
-      });
-    }
-
     res.status(500).json({
       message: "Failed to save tenant",
       error: error.message,
@@ -128,10 +135,30 @@ export const updateTenant = async (req, res) => {
       });
     }
 
-    const newDocs =
-      req.files?.map((f) => ({
-        url: `/uploads/tenants/${f.filename}`,
-      })) || [];
+    // ✅ Upload helper
+    const uploadToCloudinary = (fileBuffer) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "tenants" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        streamifier.createReadStream(fileBuffer).pipe(stream);
+      });
+    };
+
+    let newDocs = [];
+
+    if (req.files && req.files.length > 0) {
+      newDocs = await Promise.all(
+        req.files.map(async (file) => {
+          const result = await uploadToCloudinary(file.buffer);
+          return { url: result.secure_url };
+        })
+      );
+    }
 
     await tenant.update({
       name: req.body.name,
@@ -144,7 +171,6 @@ export const updateTenant = async (req, res) => {
       documents: newDocs.length ? newDocs : tenant.documents,
     });
 
-    // ✅ reload tenant with associations
     const updatedTenant = await Tenant.findByPk(req.params.id, {
       include: [
         { model: Building, as: "building", attributes: ["name"] },
@@ -153,17 +179,10 @@ export const updateTenant = async (req, res) => {
       ],
     });
 
-    // ✅ send tenant directly (not wrapped)
     res.json(updatedTenant);
+
   } catch (error) {
     console.error("UPDATE TENANT ERROR:", error);
-
-    if (error instanceof Sequelize.ValidationError) {
-      return res.status(400).json({
-        message: error.errors.map((e) => e.message).join(", "),
-      });
-    }
-
     res.status(500).json({
       message: "Failed to update tenant",
       error: error.message,
@@ -184,26 +203,22 @@ export const deleteTenant = async (req, res) => {
       });
     }
 
-    // ✅ ensure documents is array
     const docs = Array.isArray(tenant.documents) ? tenant.documents : [];
 
-    // ✅ delete uploaded files safely
+    // ✅ DELETE FROM CLOUDINARY
     for (const f of docs) {
       if (!f?.url) continue;
 
-      const filePath = path.join(
-        process.cwd(),
-        "uploads",
-        "tenants",
-        f.url.split("/").pop(),
-      );
-
       try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+        // Extract public_id correctly
+        const parts = f.url.split("/");
+        const fileName = parts.pop();
+        const folder = parts.pop();
+        const publicId = `${folder}/${fileName.split(".")[0]}`;
+
+        await cloudinary.uploader.destroy(publicId);
       } catch (err) {
-        console.warn("File delete warning:", err.message);
+        console.warn("Cloudinary delete warning:", err.message);
       }
     }
 
@@ -212,9 +227,9 @@ export const deleteTenant = async (req, res) => {
     res.json({
       message: "Tenant deleted successfully",
     });
+
   } catch (error) {
     console.error("DELETE TENANT ERROR:", error);
-
     res.status(500).json({
       message: "Failed to delete tenant",
       error: error.message,
