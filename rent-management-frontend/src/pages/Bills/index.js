@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../../utils/api";
 import Layout from "../../components/Layout";
 import "./index.css";
 
 const Bills = () => {
+  const navigate = useNavigate();
   const [records, setRecords] = useState([]);
 
   // LOGO BASE64
@@ -20,9 +23,6 @@ const Bills = () => {
       });
   }, []);
 
-  const BASE_URL = "https://demo-production-bf0f.up.railway.app/api";
-  const getToken = () => localStorage.getItem("token");
-
   const [previous, setPrevious] = useState("");
   const [current, setCurrent] = useState("");
   const [units, setUnits] = useState("");
@@ -32,62 +32,30 @@ const Bills = () => {
   const [year, setYear] = useState("");
 
   const [filterTenant, setFilterTenant] = useState("");
-  const [filterRoom, setFilterRoom] = useState("");
-  const [filterBuilding, setFilterBuilding] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const [buildings, setBuildings] = useState([]);
-  const [floors, setFloors] = useState([]);
-  const [rooms, setRooms] = useState([]);
   const [tenants, setTenants] = useState([]);
 
-  const [buildingId, setBuildingId] = useState("");
-  const [floorId, setFloorId] = useState("");
-  const [roomId, setRoomId] = useState("");
   const [tenantId, setTenantId] = useState("");
 
   const [editId, setEditId] = useState(null);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/buildings/getBuildings`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setBuildings(Array.isArray(data) ? data : data.data || []);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetch(`${BASE_URL}/floors/getFloors`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setFloors(Array.isArray(data) ? data : data.data || []);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetch(`${BASE_URL}/rooms/getRooms`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setRooms(Array.isArray(data) ? data : data.data || []);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetch(`${BASE_URL}/tenants/getTenants`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchTenants = async () => {
+      const data = await apiRequest(
+        "/tenants/getTenants",
+        "GET",
+        null,
+        navigate,
+      );
+      if (data) {
         setTenants(Array.isArray(data) ? data : data.data || []);
-      });
-  }, []);
+      }
+    };
+
+    fetchTenants();
+  }, [navigate]);
 
   useEffect(() => {
     if (previous !== "" && current !== "") {
@@ -107,113 +75,93 @@ const Bills = () => {
     const fetchLastBill = async () => {
       if (!tenantId) return;
 
-      try {
-        const res = await fetch(`${BASE_URL}/bills/last?tenantId=${tenantId}`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
+      const data = await apiRequest(
+        `/bills/last?tenantId=${tenantId}`,
+        "GET",
+        null,
+        navigate,
+      );
 
-        const data = await res.json();
-
-        if (data?.current_reading) {
-          setPrevious(data.current_reading);
-        } else {
-          setPrevious(0);
-        }
-      } catch (err) {
-        console.error(err);
+      if (data?.current_reading) {
+        setPrevious(data.current_reading);
+      } else {
         setPrevious(0);
       }
     };
 
     fetchLastBill();
-  }, [tenantId]);
+  }, [tenantId, navigate]);
 
   const fetchBills = useCallback(async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/bills/getBills`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+    const data = await apiRequest("/bills/getBills", "GET", null, navigate);
 
-      const data = await res.json();
+    if (!data) return;
 
-      console.log("API DATA:", data); // 👈 ADD THIS
-      setRecords(Array.isArray(data) ? data : data.data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
+    setRecords(data); // ✅ FIX (NOT data.data)
+  }, [navigate]);
 
   useEffect(() => {
     fetchBills();
   }, [fetchBills]);
 
-  const filteredFloors = floors.filter(
-    (f) => f.building_id === Number(buildingId),
-  );
-
-  const filteredRooms = rooms.filter(
-    (r) =>
-      r.building_id === Number(buildingId) && r.floor_id === Number(floorId),
-  );
-
-  const filteredTenants = tenants.filter((t) => t.room_id === Number(roomId));
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      const url = editId
-        ? `${BASE_URL}/bills/updateBill/${editId}`
-        : `${BASE_URL}/bills/addBill`;
+    // 🔥 DUPLICATE CHECK (same tenant + month + year)
+    const alreadyExists = records.find(
+      (r) =>
+        r.tenant_id === Number(tenantId) &&
+        r.month === month &&
+        r.year === Number(year) &&
+        r.id !== editId, // allow update
+    );
 
-      const method = editId ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          building_id: Number(buildingId),
-          floor_id: Number(floorId),
-          room_id: Number(roomId),
-          tenant_id: Number(tenantId),
-          previous_reading: Number(previous),
-          current_reading: Number(current),
-          units: Number(units),
-          rate: Number(rate),
-          amount: Number(amount),
-          month,
-          year: Number(year),
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.message);
-
-      fetchBills();
-      setEditId(null); // reset edit mode
-      alert(editId ? "Bill updated successfully" : "Bill saved successfully");
-    } catch (err) {
-      console.error(err);
-      alert("Error saving bill");
+    if (alreadyExists) {
+      alert("Bill already exists for this tenant, month and year");
+      return;
     }
+
+    const endpoint = editId ? `/bills/updateBill/${editId}` : `/bills/addBill`;
+
+    const method = editId ? "PUT" : "POST";
+
+    const payload = {
+      tenant_id: Number(tenantId),
+      previous_reading: Number(previous),
+      current_reading: Number(current),
+      units: Number(units),
+      rate: Number(rate),
+      amount: Number(amount),
+      month,
+      year: Number(year),
+    };
+
+    const data = await apiRequest(endpoint, method, payload, navigate);
+
+    if (!data) return;
+
+    alert(editId ? "Updated successfully" : "Saved successfully");
+
+    fetchBills();
+
+    // ✅ RESET FORM
+    setEditId(null);
+    setTenantId("");
+    setPrevious("");
+    setCurrent("");
+    setUnits("");
+    setRate("");
+    setAmount(0);
+    setMonth("");
+    setYear("");
   };
 
   const handleEdit = (item) => {
     setEditId(item.id);
 
     setTenantId(item.tenant_id);
-    setRoomId(item.room_id);
-    setFloorId(item.floor_id);
-    setBuildingId(item.building_id);
-
-    setPrevious(item.previous); // use mapped value
-    setCurrent(item.current); // use mapped value
+    setPrevious(item.previous_reading);
+    setCurrent(item.current_reading);
     setUnits(item.units);
     setRate(item.rate);
     setAmount(item.amount);
@@ -224,12 +172,14 @@ const Bills = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this bill?")) return;
 
-    await fetch(`${BASE_URL}/bills/deleteBill/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-      },
-    });
+    const data = await apiRequest(
+      `/bills/deleteBill/${id}`,
+      "DELETE",
+      null,
+      navigate,
+    );
+
+    if (!data) return;
 
     fetchBills();
   };
@@ -348,16 +298,18 @@ ${isPageStart ? `<div class="page">` : ``}
 <table class="info-table">
 <tr>
 <th>Tenant</th>
-<td>${record.tenantName}</td>
+<td>${record.tenant?.name || "N/A"}</td>
 <th>Room</th>
-<td>${record.room}</td>
+<td>${record.tenant?.room?.room_number || "N/A"}</td>
 </tr>
+
 <tr>
 <th>Floor</th>
-<td>${record.floor}</td>
+<td>${record.tenant?.floor?.floor_number || "N/A"}</td>
 <th>Building</th>
-<td>${record.buildingName}</td>
+<td>${record.tenant?.building?.name || "N/A"}</td>
 </tr>
+
 <tr>
 <th>Month</th>
 <td>${record.month}</td>
@@ -378,8 +330,8 @@ ${isPageStart ? `<div class="page">` : ``}
 </thead>
 <tbody>
 <tr>
-<td>${record.previous}</td>
-<td>${record.current}</td>
+<td>${record.previous_reading}</td>
+<td>${record.current_reading}</td>
 <td>${record.units}</td>
 <td>${record.rate}</td>
 <td>₹ ${record.amount}</td>
@@ -403,7 +355,7 @@ ${isPageEnd || index === records.length - 1 ? `</div>` : ``}
       `
 <script>
 window.onload = () => {
-setTimeout(() => window.print(), 300);
+  setTimeout(() => window.print(), 300);
 }
 </script>
 </body>
@@ -412,23 +364,27 @@ setTimeout(() => window.print(), 300);
     );
   };
 
-  const filteredRecords = records.filter(
-    (r) =>
-      (filterTenant ? r.tenant_id === Number(filterTenant) : true) &&
-      (filterRoom ? r.room_id === Number(filterRoom) : true) &&
-      (filterBuilding ? r.building_id === Number(filterBuilding) : true) &&
-      (filterMonth ? r.month === filterMonth : true) &&
-      (filterYear ? r.year === Number(filterYear) : true),
-  );
+  const filteredRecords = records.filter((r) => {
+    return (
+      (!filterTenant || r.tenant_id === Number(filterTenant)) &&
+      (!filterMonth || r.month === filterMonth) &&
+      (!filterYear || r.year === Number(filterYear))
+    );
+  });
 
   console.log("records:", records);
   console.log("filtered:", filteredRecords);
   // Print all filtered records
   const handlePrintAll = () => {
-    const printWindow = window.open("", "", "height=700,width=900");
-    printWindow.document.write(generatePrintHTML(filteredRecords));
-    printWindow.document.close();
-  };
+  if (filteredRecords.length === 0) {
+    alert("No records to print");
+    return;
+  }
+
+  const printWindow = window.open("", "", "height=700,width=900");
+  printWindow.document.write(generatePrintHTML(filteredRecords));
+  printWindow.document.close();
+};
 
   // Array Years
   const years = Array.from(
@@ -443,63 +399,12 @@ setTimeout(() => window.print(), 300);
 
         <form className="bill-form" onSubmit={handleSubmit}>
           <select
-            value={buildingId}
-            onChange={(e) => {
-              setBuildingId(e.target.value);
-              setFloorId("");
-              setRoomId("");
-              setTenantId("");
-            }}
-            required
-          >
-            <option value="">Select Building</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={floorId}
-            onChange={(e) => {
-              setFloorId(e.target.value);
-              setRoomId("");
-              setTenantId("");
-            }}
-            required
-          >
-            <option value="">Select Floor</option>
-            {filteredFloors.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.floor_number}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={roomId}
-            onChange={(e) => {
-              setRoomId(e.target.value);
-              setTenantId("");
-            }}
-            required
-          >
-            <option value="">Select Room</option>
-            {filteredRooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.room_number}
-              </option>
-            ))}
-          </select>
-
-          <select
             value={tenantId}
             onChange={(e) => setTenantId(e.target.value)}
             required
           >
             <option value="">Select Tenant</option>
-            {filteredTenants.map((t) => (
+            {tenants.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>
@@ -577,30 +482,6 @@ setTimeout(() => window.print(), 300);
           </select>
 
           <select
-            value={filterRoom}
-            onChange={(e) => setFilterRoom(e.target.value)}
-          >
-            <option value="">All Rooms</option>
-            {rooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.room_number}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filterBuilding}
-            onChange={(e) => setFilterBuilding(e.target.value)}
-          >
-            <option value="">All Buildings</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-
-          <select
             value={filterMonth}
             onChange={(e) => setFilterMonth(e.target.value)}
           >
@@ -654,21 +535,10 @@ setTimeout(() => window.print(), 300);
             <tbody>
               {filteredRecords.map((item) => (
                 <tr key={item.id}>
-                  <td>
-                    {tenants.find((t) => t.id === item.tenant_id)?.name || ""}
-                  </td>
-                  <td>
-                    {rooms.find((r) => r.id === item.room_id)?.room_number ||
-                      ""}
-                  </td>
-                  <td>
-                    {floors.find((f) => f.id === item.floor_id)?.floor_number ||
-                      ""}
-                  </td>
-                  <td>
-                    {buildings.find((b) => b.id === item.building_id)?.name ||
-                      ""}
-                  </td>
+                  <td>{item.tenant?.name}</td>
+                  <td>{item.tenant?.room?.room_number}</td>
+                  <td>{item.tenant?.floor?.floor_number}</td>
+                  <td>{item.tenant?.building?.name}</td>
                   <td>{item.units}</td>
                   <td>{item.amount}</td>
                   <td>{item.month}</td>
@@ -698,41 +568,39 @@ setTimeout(() => window.print(), 300);
             <div className="mobile-row" key={item.id}>
               <div className="mobile-field">
                 <span className="label">Tenant</span>
-                <span>
-                  {tenants.find((t) => t.id === item.tenant_id)?.name || ""}
-                </span>
+                <span>{item.tenant?.name || ""}</span>
               </div>
+
               <div className="mobile-field">
                 <span className="label">Room</span>
-                <span>
-                  {rooms.find((r) => r.id === item.room_id)?.room_number || ""}
-                </span>
+                <span>{item.tenant?.room?.room_number || ""}</span>
               </div>
+
               <div className="mobile-field">
                 <span className="label">Floor</span>
-                <span>
-                  {floors.find((f) => f.id === item.floor_id)?.floor_number ||
-                    ""}
-                </span>
+                <span>{item.tenant?.floor?.floor_number || ""}</span>
               </div>
+
               <div className="mobile-field">
                 <span className="label">Building</span>
-                <span>
-                  {buildings.find((b) => b.id === item.building_id)?.name || ""}
-                </span>
+                <span>{item.tenant?.building?.name || ""}</span>
               </div>
+
               <div className="mobile-field">
                 <span className="label">Units</span>
                 <span>{item.units}</span>
               </div>
+
               <div className="mobile-field">
                 <span className="label">Amount</span>
                 <span>₹ {item.amount}</span>
               </div>
+
               <div className="mobile-field">
                 <span className="label">Month</span>
                 <span>{item.month}</span>
               </div>
+
               <div className="mobile-field">
                 <span className="label">Year</span>
                 <span>{item.year}</span>
