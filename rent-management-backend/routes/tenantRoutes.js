@@ -1,7 +1,5 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { protect } from '../middleware/authMiddleware.js';
 
 import {
@@ -11,38 +9,25 @@ import {
   deleteTenant
 } from '../controllers/tenantController.js';
 
+// ✅ NEW IMPORTS
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../config/cloudinary.js";
+
 const router = express.Router();
 
-// All routes protected
+// Protect all routes
 router.use(protect);
 
-const uploadPath = path.join(process.cwd(), 'uploads/tenants');
-
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadPath);
+// ✅ CLOUDINARY STORAGE
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "tenants",
+    allowed_formats: ["jpg", "png", "jpeg", "pdf"],
   },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const unique =
-      Date.now() + '-' + Math.round(Math.random() * 1e9) + ext;
-    cb(null, unique);
-  }
 });
 
-const fileFilter = (req, file, cb) => {
-  if (
-    ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
-      .includes(file.mimetype)
-  ) cb(null, true);
-  else cb(null, false);
-};
-
-const upload = multer({ storage, fileFilter });
+const upload = multer({ storage });
 
 router.get('/getTenants', getTenants);
 router.post('/addTenant', upload.array('documents', 5), addTenant);
