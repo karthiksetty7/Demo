@@ -5,26 +5,74 @@ import Tenant from "./Tenant.js";
 const RentEntry = sequelize.define(
   "RentEntry",
   {
-    tenant_id: { type: DataTypes.INTEGER, allowNull: false },
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
 
-    month: { type: DataTypes.STRING, allowNull: false },
+    tenant_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
 
-    rent: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
-    water: { type: DataTypes.DECIMAL(10, 2), defaultValue: 300 },
-    maintenance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
-    electricity: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+    month: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
 
-    previous_due: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
-    total: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
-    paid: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
-    advance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+    rent: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
 
-    status: { type: DataTypes.STRING, defaultValue: "not vacated" },
-    due: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+    water: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 300,
+    },
+
+    maintenance: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
+
+    electricity: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
+
+    previous_due: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
+
+    total: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
+
+    paid: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
+
+    advance: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
+
+    status: {
+      type: DataTypes.STRING,
+      defaultValue: "not vacated",
+    },
+
+    due: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
   },
   {
     tableName: "RentEntries",
-    freezeTableName: true,
     timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
@@ -33,14 +81,28 @@ const RentEntry = sequelize.define(
       {
         unique: true,
         fields: ["tenant_id", "month"],
+        name: "unique_rent_per_tenant_month",
       },
     ],
   }
 );
 
+// =========================
+// Associations (IMPORTANT)
+// =========================
+
+// RentEntry → Tenant
 RentEntry.belongsTo(Tenant, {
   foreignKey: "tenant_id",
   as: "tenant",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+// Tenant → RentEntries
+Tenant.hasMany(RentEntry, {
+  foreignKey: "tenant_id",
+  as: "rent_entries",
 });
 
 export default RentEntry;
