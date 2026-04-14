@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../../components/Layout";
 import "./index.css";
 
 const BASE_URL = "https://demo-production-bf0f.up.railway.app/api";
-const FILE_BASE_URL = "https://demo-production-bf0f.up.railway.app";
+
 
 const Tenants = () => {
   const [buildings, setBuildings] = useState([]);
@@ -28,6 +29,8 @@ const Tenants = () => {
   const fileInputRef = useRef(null);
   const getToken = () => localStorage.getItem("token");
 
+  const navigate = useNavigate();
+
   // Fetch Buildings
   useEffect(() => {
     const fetchBuildings = async () => {
@@ -40,6 +43,7 @@ const Tenants = () => {
         if (res.status === 401) {
           alert("Session expired. Please login again.");
           localStorage.removeItem("token");
+          navigate("/");
           return;
         }
         const data = await res.json();
@@ -50,7 +54,7 @@ const Tenants = () => {
       }
     };
     fetchBuildings();
-  }, []);
+  }, [navigate]);
 
   // Fetch Floors
   useEffect(() => {
@@ -64,6 +68,7 @@ const Tenants = () => {
         if (res.status === 401) {
           alert("Session expired. Please login again.");
           localStorage.removeItem("token");
+          navigate("/");
           return;
         }
         const data = await res.json();
@@ -81,7 +86,7 @@ const Tenants = () => {
       }
     };
     fetchFloors();
-  }, []);
+  }, [navigate]);
 
   // Fetch Rooms
   useEffect(() => {
@@ -95,6 +100,7 @@ const Tenants = () => {
         if (res.status === 401) {
           alert("Session expired. Please login again.");
           localStorage.removeItem("token");
+          navigate("/");
           return;
         }
         const data = await res.json();
@@ -114,7 +120,7 @@ const Tenants = () => {
       }
     };
     fetchRooms();
-  }, []);
+  }, [navigate]);
 
   // Fetch Tenants
   useEffect(() => {
@@ -130,6 +136,7 @@ const Tenants = () => {
         if (res.status === 401) {
           alert("Session expired. Please login again.");
           localStorage.removeItem("token");
+          navigate("/");
           return;
         }
 
@@ -171,7 +178,7 @@ const Tenants = () => {
     };
 
     fetchTenants();
-  }, []);
+  }, [navigate]);
 
   const filteredFloors = floors.filter(
     (f) => f.buildingId === parseInt(buildingId),
@@ -344,11 +351,32 @@ const Tenants = () => {
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.message || "Failed to delete tenant");
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete tenant");
+      }
 
       alert(data.message || "Tenant deleted successfully");
 
-      setTenants((prev) => prev.filter((t) => t.id !== id));
+      // ✅ REFETCH FROM BACKEND (important)
+      const tenantsRes = await fetch(`${BASE_URL}/tenants/getTenants`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+
+      const tenantsData = await tenantsRes.json();
+
+      setTenants(
+        (Array.isArray(tenantsData) ? tenantsData : []).map((t) => ({
+          ...t,
+          documents: Array.isArray(t.documents)
+            ? t.documents
+            : typeof t.documents === "string"
+              ? JSON.parse(t.documents)
+              : [],
+          building: { name: t.building?.name || "" },
+          floor: { floor_number: t.floor?.floor_number || "" },
+          room: { room_number: t.room?.room_number || "" },
+        })),
+      );
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -396,27 +424,27 @@ const Tenants = () => {
 
   // Generate HTML for a single tenant
   const generateTenantHTML = (tenant) => {
-    const buildingName = tenant.building?.name || "";
-    const floorName = tenant.floor?.floor_number || "";
-    const roomNumber = tenant.room?.room_number || "";
+  const buildingName = tenant.building?.name || "";
+  const floorName = tenant.floor?.floor_number || "";
+  const roomNumber = tenant.room?.room_number || "";
 
-    const filesHtml = tenant.documents
-      ? tenant.documents
-          .map(
-            (f) => `
+  const filesHtml = tenant.documents
+    ? tenant.documents
+        .map(
+          (f) => `
     <div class="full-page">
       ${
         f.url.match(/\.(jpg|jpeg|png|gif)$/i)
-          ? `<img src="${FILE_BASE_URL}${f.url}" />`
-          : `<embed src="${FILE_BASE_URL}${f.url}" type="application/pdf" />`
+          ? `<img src="${f.url}" />`
+          : `<embed src="${f.url}" type="application/pdf" />`
       }
     </div>
   `,
-          )
-          .join("")
-      : "";
+        )
+        .join("")
+    : "";
 
-    return `
+  return `
   <div class="page">
     <div class="page-border">
       <div class="invoice">
@@ -439,7 +467,7 @@ const Tenants = () => {
 
   ${filesHtml}
 `;
-  };
+};
 
   // Print all filtered tenants with building check
   const printAllTenants = (filteredTenants, selectedBuilding) => {
@@ -673,7 +701,7 @@ const Tenants = () => {
                         ? docs.map((f, i) => (
                             <a
                               key={i}
-                              href={`${FILE_BASE_URL}${f.url}`}
+                              href={f.url}
                               target="_blank"
                               rel="noreferrer noopener"
                             >
