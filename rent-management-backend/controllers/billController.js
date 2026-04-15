@@ -3,6 +3,7 @@ import Tenant from "../models/Tenant.js";
 import Room from "../models/Room.js";
 import Floor from "../models/Floor.js";
 import Building from "../models/Building.js";
+import { Op } from "sequelize";
 
 /* ================= BILL NUMBER ================= */
 const generateBillNumber = () => {
@@ -20,7 +21,7 @@ const normalize = (body) => ({
   rate: Number(body.rate),
   amount: Number(body.amount),
 
-  month: body.month,
+  month: body.month?.trim(), // cleaned
   year: Number(body.year),
 });
 
@@ -129,15 +130,17 @@ export const updateBill = async (req, res) => {
 
     const data = normalize(req.body);
 
+    // ✅ FIXED DUPLICATE CHECK (important)
     const duplicate = await Bill.findOne({
       where: {
         tenant_id: data.tenant_id,
         month: data.month,
         year: data.year,
+        id: { [Op.ne]: id },
       },
     });
 
-    if (duplicate && Number(duplicate.id) !== Number(id)) {
+    if (duplicate) {
       return res.status(400).json({
         success: false,
         message: "Another bill already exists for this tenant/month/year",
@@ -198,7 +201,7 @@ export const getLastBill = async (req, res) => {
 
     const bill = await Bill.findOne({
       where: { tenant_id: tenantId },
-      order: [["id", "DESC"]],
+      order: [["createdAt", "DESC"]], // ✅ FIXED (better than id)
     });
 
     return res.json({
