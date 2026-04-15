@@ -1,8 +1,8 @@
 import Bill from "../models/Bill.js";
 import Tenant from "../models/Tenant.js";
-import Building from "../models/Building.js";
-import Floor from "../models/Floor.js";
 import Room from "../models/Room.js";
+import Floor from "../models/Floor.js";
+import Building from "../models/Building.js";
 
 /* ================= BILL NUMBER ================= */
 const generateBillNumber = () => {
@@ -33,25 +33,22 @@ export const getBills = async (req, res) => {
           model: Tenant,
           as: "tenant",
           attributes: ["id", "name"],
+
           include: [
             {
               model: Room,
               as: "room",
-              attributes: ["id", "room_number"],
-              include: [
-                {
-                  model: Floor,
-                  as: "floor",
-                  attributes: ["id", "floor_number"],
-                  include: [
-                    {
-                      model: Building,
-                      as: "building",
-                      attributes: ["id", "name"],
-                    },
-                  ],
-                },
-              ],
+              attributes: ["room_number", "building_id", "floor_id"],
+            },
+            {
+              model: Floor,
+              as: "floor",
+              attributes: ["floor_number"],
+            },
+            {
+              model: Building,
+              as: "building",
+              attributes: ["name"],
             },
           ],
         },
@@ -61,9 +58,8 @@ export const getBills = async (req, res) => {
 
     return res.json({
       success: true,
-      data: bills,
+      data: bills || [],
     });
-
   } catch (err) {
     console.error("❌ GET BILLS ERROR:", err);
 
@@ -80,7 +76,6 @@ export const addBill = async (req, res) => {
   try {
     const data = normalize(req.body);
 
-    // 🔥 DUPLICATE CHECK (backend safe)
     const existing = await Bill.findOne({
       where: {
         tenant_id: data.tenant_id,
@@ -107,7 +102,6 @@ export const addBill = async (req, res) => {
       message: "Bill created successfully",
       data: bill,
     });
-
   } catch (err) {
     console.error("❌ CREATE BILL ERROR:", err);
 
@@ -135,7 +129,6 @@ export const updateBill = async (req, res) => {
 
     const data = normalize(req.body);
 
-    // 🔥 Prevent duplicate on update
     const duplicate = await Bill.findOne({
       where: {
         tenant_id: data.tenant_id,
@@ -144,10 +137,10 @@ export const updateBill = async (req, res) => {
       },
     });
 
-    if (duplicate && duplicate.id !== Number(id)) {
+    if (duplicate && Number(duplicate.id) !== Number(id)) {
       return res.status(400).json({
         success: false,
-        message: "Another bill already exists for this month and tenant",
+        message: "Another bill already exists for this tenant/month/year",
       });
     }
 
@@ -158,7 +151,6 @@ export const updateBill = async (req, res) => {
       message: "Bill updated successfully",
       data: bill,
     });
-
   } catch (err) {
     console.error("❌ UPDATE BILL ERROR:", err);
 
@@ -188,7 +180,6 @@ export const deleteBill = async (req, res) => {
       success: true,
       message: "Bill deleted successfully",
     });
-
   } catch (err) {
     console.error("❌ DELETE BILL ERROR:", err);
 
@@ -214,7 +205,6 @@ export const getLastBill = async (req, res) => {
       success: true,
       data: bill || null,
     });
-
   } catch (err) {
     console.error("❌ LAST BILL ERROR:", err);
 
