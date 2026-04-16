@@ -22,21 +22,28 @@ const app = express();
 console.log("🔥 SERVER STARTED");
 
 // =========================
-// ✅ FIXED CORS (PRODUCTION READY)
+// ✅ CORS (FINAL PRODUCTION READY)
 // =========================
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
   "http://127.0.0.1:3000",
-  "https://demo-production-bf0f.up.railway.app"
+  "https://demo-production-bf0f.up.railway.app",
+
+  // ✅ Your Vercel Frontend
+  "https://demo-lilac-three-77.vercel.app"
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin || // allow Postman / mobile apps
+      allowedOrigins.includes(origin) ||
+      origin.endsWith(".vercel.app") // ✅ allow all Vercel deployments
+    ) {
       callback(null, true);
     } else {
-      callback(new Error("CORS blocked for origin: " + origin));
+      callback(new Error("❌ CORS blocked for origin: " + origin));
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -50,7 +57,6 @@ app.options("*", cors(corsOptions));
 // =========================
 // BODY PARSER
 // =========================
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -83,6 +89,14 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use("/api/rent", rentEntryRoutes);
 app.use("/api/bills", billRoutes);
+
+// =========================
+// GLOBAL ERROR HANDLER (NEW)
+// =========================
+app.use((err, req, res, next) => {
+  console.error("❌ ERROR:", err.message);
+  res.status(500).json({ message: err.message });
+});
 
 // =========================
 // START SERVER
