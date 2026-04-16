@@ -14,16 +14,21 @@ const Buildings = () => {
 
   // Fetch buildings
   const fetchBuildings = useCallback(async () => {
-    const data = await apiRequest({
-      endpoint: "/buildings/getBuildings",
-      method: "GET",
-      navigate,
-    });
+  const data = await apiRequest({
+    endpoint: "/buildings/getBuildings",
+    method: "GET",
+    navigate,
+  });
 
-    if (!data) return;
+  if (!data) return;
 
-    setBuildings(Array.isArray(data) ? data : data.data || []);
-  }, [navigate]);
+  const buildingsArray = Array.isArray(data) ? data : data.data || [];
+
+  // ✅ SORT BY ID ASCENDING (1 → 2 → 3 ...)
+  const sortedBuildings = [...buildingsArray].sort((a, b) => a.id - b.id);
+
+  setBuildings(sortedBuildings);
+}, [navigate]);
 
 
   useEffect(() => {
