@@ -7,7 +7,6 @@ import Rooms from './pages/Rooms'
 import Tenants from './pages/Tenants'
 import RentEntry from './pages/RentEntry'
 import Bills from './pages/Bills'
-import Reports from './pages/Reports'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -78,14 +77,6 @@ function App() {
         }
       />
 
-      <Route
-        path='/reports'
-        element={
-          <ProtectedRoute>
-            <Reports />
-          </ProtectedRoute>
-        }
-      />
     </Routes>
   )
 }
