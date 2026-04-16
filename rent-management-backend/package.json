@@ -8,8 +8,11 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": [],
-  "author": "",
+  "engines": {
+    "node": "24.x"
+  },
+  "keywords": ["rent", "management", "backend", "express", "sequelize"],
+  "author": "Setty Karthik",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
