@@ -43,12 +43,11 @@ const Bills = () => {
 
   useEffect(() => {
     const fetchTenants = async () => {
-      const data = await apiRequest(
-        "/tenants/getTenants",
-        "GET",
-        null,
+      const data = await apiRequest({
+        endpoint: "/tenants/getTenants",
+        method: "GET",
         navigate,
-      );
+      });
       if (data) {
         setTenants(Array.isArray(data) ? data : data.data || []);
       }
@@ -75,12 +74,11 @@ const Bills = () => {
     const fetchLastBill = async () => {
       if (!tenantId) return;
 
-      const data = await apiRequest(
-        `/bills/last?tenantId=${tenantId}`,
-        "GET",
-        null,
+      const data = await apiRequest({
+        endpoint: `/bills/last?tenantId=${tenantId}`,
+        method: "GET",
         navigate,
-      );
+      });
 
       if (data?.current_reading) {
         setPrevious(data.current_reading);
@@ -93,11 +91,31 @@ const Bills = () => {
   }, [tenantId, navigate]);
 
   const fetchBills = useCallback(async () => {
-    const data = await apiRequest("/bills/getBills", "GET", null, navigate);
+    try {
+      const response = await apiRequest({
+        endpoint: "/bills/getBills",
+        method: "GET",
+        navigate,
+      });
 
-    if (!data) return;
+      console.log("RAW RESPONSE:", response);
 
-    setRecords(data); // ✅ FIX (NOT data.data)
+      // ✅ HANDLE ALL POSSIBLE STRUCTURES SAFELY
+      let bills = [];
+
+      if (Array.isArray(response)) {
+        bills = response;
+      } else if (Array.isArray(response?.data)) {
+        bills = response.data;
+      } else if (Array.isArray(response?.data?.data)) {
+        bills = response.data.data;
+      }
+
+      setRecords(bills);
+    } catch (err) {
+      console.error("FETCH ERROR:", err);
+      setRecords([]);
+    }
   }, [navigate]);
 
   useEffect(() => {
@@ -136,7 +154,12 @@ const Bills = () => {
       year: Number(year),
     };
 
-    const data = await apiRequest(endpoint, method, payload, navigate);
+    const data = await apiRequest({
+      endpoint,
+      method,
+      body: payload,
+      navigate,
+    });
 
     if (!data) return;
 
@@ -172,12 +195,11 @@ const Bills = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this bill?")) return;
 
-    const data = await apiRequest(
-      `/bills/deleteBill/${id}`,
-      "DELETE",
-      null,
+    const data = await apiRequest({
+      endpoint: `/bills/deleteBill/${id}`,
+      method: "DELETE",
       navigate,
-    );
+    });
 
     if (!data) return;
 
@@ -364,7 +386,9 @@ window.onload = () => {
     );
   };
 
-  const filteredRecords = records.filter((r) => {
+  const safeRecords = Array.isArray(records) ? records : [];
+
+  const filteredRecords = safeRecords.filter((r) => {
     return (
       (!filterTenant || r.tenant_id === Number(filterTenant)) &&
       (!filterMonth || r.month === filterMonth) &&
@@ -376,15 +400,26 @@ window.onload = () => {
   console.log("filtered:", filteredRecords);
   // Print all filtered records
   const handlePrintAll = () => {
-  if (filteredRecords.length === 0) {
-    alert("No records to print");
-    return;
-  }
+    // ✅ MANDATORY VALIDATION
+    if (!filterTenant) {
+      alert("Please select Tenant before printing");
+      return;
+    }
 
-  const printWindow = window.open("", "", "height=700,width=900");
-  printWindow.document.write(generatePrintHTML(filteredRecords));
-  printWindow.document.close();
-};
+    if (!filterYear) {
+      alert("Please select Year before printing");
+      return;
+    }
+
+    if (filteredRecords.length === 0) {
+      alert("No records to print");
+      return;
+    }
+
+    const printWindow = window.open("", "", "height=700,width=900");
+    printWindow.document.write(generatePrintHTML(filteredRecords));
+    printWindow.document.close();
+  };
 
   // Array Years
   const years = Array.from(

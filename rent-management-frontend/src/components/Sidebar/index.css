@@ -148,3 +148,16 @@
     width: 220px;
   }
 }
+
+
+/* Desktop spacing improvement */
+@media screen and (min-width: 1025px) {
+  .sidebar nav {
+    gap: 8px; /* adds space between items */
+  }
+
+  .sidebar a {
+    margin-bottom: 14px; /* increase vertical spacing */
+    padding: 14px 18px; /* slightly bigger click area */
+  }
+}

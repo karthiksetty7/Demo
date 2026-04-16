@@ -71,6 +71,9 @@ const Rooms = () => {
       }),
     );
 
+    // ✅ SORT BY ID ASC (old → new)
+    formatted.sort((a, b) => a.id - b.id);
+
     setRooms(formatted);
   }, [navigate]);
 

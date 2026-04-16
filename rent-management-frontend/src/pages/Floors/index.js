@@ -1,221 +1,135 @@
-import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import './index.css';
-
-const BASE_URL = 'https://demo-production-bf0f.up.railway.app/api'; // Railway API base
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../../utils/api";
+import Layout from "../../components/Layout";
+import "./index.css";
 
 const Floors = () => {
   const [buildings, setBuildings] = useState([]);
   const [floors, setFloors] = useState([]);
-  const [buildingId, setBuildingId] = useState('');
-  const [floorName, setFloorName] = useState('');
+  const [buildingId, setBuildingId] = useState("");
+  const [floorName, setFloorName] = useState("");
   const [editId, setEditId] = useState(null);
 
-  // Get token from localStorage
-  const getToken = () => localStorage.getItem('token');
+  const navigate = useNavigate();
 
   // Fetch buildings with token
-  useEffect(() => {
-    const fetchBuildings = async () => {
-      const token = getToken();
-      if (!token) return; // optionally redirect to login
+  const fetchBuildings = useCallback(async () => {
+    const data = await apiRequest({
+      endpoint: "/buildings/getBuildings",
+      method: "GET",
+      navigate,
+    });
 
-      try {
-        const res = await fetch(`${BASE_URL}/buildings/getBuildings`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401) {
-          alert('Session expired. Please login again.');
-          localStorage.removeItem('token');
-          return;
-        }
-        const data = await res.json();
-        setBuildings(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('Failed to fetch buildings:', err);
-        setBuildings([]);
-      }
-    };
-    fetchBuildings();
-  }, []);
+    if (!data) return;
+
+    setBuildings(Array.isArray(data) ? data : data.data || []);
+  }, [navigate]);
 
   // Fetch floors with token
-  useEffect(() => {
-    const fetchFloors = async () => {
-      const token = getToken();
-      if (!token) return;
+  const fetchFloors = useCallback(async () => {
+    const data = await apiRequest({
+      endpoint: "/floors/getFloors",
+      method: "GET",
+      navigate,
+    });
 
-      try {
-        const res = await fetch(`${BASE_URL}/floors/getFloors`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401) {
-          alert('Session expired. Please login again.');
-          localStorage.removeItem('token');
-          return;
-        }
-        const data = await res.json();
-        setFloors(
-          (Array.isArray(data) ? data : []).map(f => ({
-            id: f.id,
-            buildingId: f.building_id,
-            buildingName: f.building?.name || '',
-            floorName: f.floor_number,
-          }))
-        );
-      } catch (err) {
-        console.error('Failed to fetch floors:', err);
-        setFloors([]);
-      }
-    };
+    if (!data) return;
+
+    const formatted = (Array.isArray(data) ? data : data.data || []).map(
+      (f) => ({
+        id: f.id,
+        buildingId: f.building_id,
+        buildingName: f.building?.name || "",
+        floorName: f.floor_number,
+      }),
+    );
+
+    setFloors(formatted);
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchBuildings();
     fetchFloors();
-  }, []);
+  }, [fetchFloors, fetchBuildings]);
 
   // Add / Update floor
-  const handleSubmit = async e => {
-  e.preventDefault();
-  if (!buildingId || !floorName) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const token = getToken();
-  if (!token) {
-    alert('Please login.');
-    return;
-  }
-
-  const payload = { building_id: parseInt(buildingId), floor_number: floorName };
-
-  try {
-    let res;
-    if (editId) {
-      res = await fetch(`${BASE_URL}/floors/updateFloor/${editId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-    } else {
-      res = await fetch(`${BASE_URL}/floors/addFloor`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-    }
-
-    const data = await res.json();
-
-    if (res.status === 401) {
-      alert('Token invalid. Please login again.');
-      localStorage.removeItem('token');
+    if (!buildingId || !floorName) {
+      alert("Please select building and enter floor.");
       return;
     }
 
-    // ❗ THIS WAS MISSING
-    if (!res.ok) {
-      alert(data.message || 'Something went wrong');
-      return;
-    }
+    const endpoint = editId
+      ? `/floors/updateFloor/${editId}`
+      : `/floors/addFloor`;
 
-    // ✅ SUCCESS POPUP
-    alert(data.message);
+    const method = editId ? "PUT" : "POST";
 
-    if (editId) {
-      setFloors(prev =>
-        prev.map(f =>
-          f.id === editId
-            ? {
-                ...f,
-                buildingId: parseInt(buildingId),
-                buildingName: buildings.find(b => b.id === parseInt(buildingId))?.name,
-                floorName,
-              }
-            : f
-        )
-      );
-      setEditId(null);
-    } else {
-      const newFloor = {
-        id: data.floor.id,
-        buildingId: data.floor.building_id,
-        buildingName: buildings.find(b => b.id === data.floor.building_id)?.name,
-        floorName: data.floor.floor_number,
-      };
-      setFloors(prev => [...prev, newFloor]);
-    }
+    const data = await apiRequest({
+      endpoint,
+      method,
+      body: {
+        building_id: parseInt(buildingId),
+        floor_number: floorName,
+      },
+      navigate,
+    });
 
-    handleCancel();
+    if (!data) return;
 
-  } catch (err) {
-    console.error('Failed to save floor:', err);
-    alert('Network error. Please try again.');
-  }
-};
+    alert(data.message || "Success");
 
-  const handleEdit = floor => {
+    setBuildingId("");
+    setFloorName("");
+    setEditId(null);
+
+    fetchFloors();
+  };
+
+  const handleEdit = (floor) => {
     setEditId(floor.id);
     setBuildingId(floor.buildingId.toString());
     setFloorName(floor.floorName);
   };
 
-  const handleDelete = async id => {
-  if (!window.confirm('Delete this floor?')) return;
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this floor?")) return;
 
-  const token = getToken();
-  if (!token) {
-    alert('Please login.');
-    return;
-  }
-
-  try {
-    const res = await fetch(`${BASE_URL}/floors/deleteFloor/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+    const data = await apiRequest({
+      endpoint: `/floors/deleteFloor/${id}`,
+      method: "DELETE",
+      navigate,
     });
 
-    const data = await res.json();
+    if (!data) return;
 
-    if (res.status === 401) {
-      alert('Token invalid. Please login again.');
-      localStorage.removeItem('token');
-      return;
-    }
+    alert(data.message || "Deleted successfully");
 
-    // ❗ THIS WAS MISSING
-    if (!res.ok) {
-      alert(data.message || 'Failed to delete floor');
-      return;
-    }
-
-    // ✅ SUCCESS POPUP
-    alert(data.message);
-
-    setFloors(prev => prev.filter(f => f.id !== id));
-
-  } catch (err) {
-    console.error('Failed to delete floor:', err);
-    alert('Network error. Please try again.');
-  }
-};
+    fetchFloors();
+  };
 
   const handleCancel = () => {
     setEditId(null);
-    setBuildingId('');
-    setFloorName('');
+    setBuildingId("");
+    setFloorName("");
   };
 
   return (
     <Layout>
-      <div className='floor-container'>
-        <h2>{editId ? 'Update Floor' : 'Add Floor'}</h2>
+      <div className="floor-container">
+        <h2>{editId ? "Update Floor" : "Add Floor"}</h2>
 
-        <form className='floor-form' onSubmit={handleSubmit}>
-          <select value={buildingId} onChange={e => setBuildingId(e.target.value)} required>
-            <option value=''>Select Building</option>
-            {buildings.map(b => (
+        <form className="floor-form" onSubmit={handleSubmit}>
+          <select
+            value={buildingId}
+            onChange={(e) => setBuildingId(e.target.value)}
+            required
+          >
+            <option value="">Select Building</option>
+            {buildings.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>
@@ -223,20 +137,26 @@ const Floors = () => {
           </select>
 
           <input
-            type='text'
-            placeholder='Floor Name (Ex: Ground, Floor 1)'
+            type="text"
+            placeholder="Floor Name (Ex: Ground, Floor 1)"
             value={floorName}
-            onChange={e => setFloorName(e.target.value)}
+            onChange={(e) => setFloorName(e.target.value)}
             required
           />
 
-          <button type='submit'>{editId ? 'Update Floor' : 'Save Floor'}</button>
-          {editId && <button type='button' className='cancel-btn' onClick={handleCancel}>Cancel</button>}
+          <button type="submit">
+            {editId ? "Update Floor" : "Save Floor"}
+          </button>
+          {editId && (
+            <button type="button" className="cancel-btn" onClick={handleCancel}>
+              Cancel
+            </button>
+          )}
         </form>
 
         <h2>Floors List</h2>
 
-        <div className='table-container desktop-table'>
+        <div className="table-container desktop-table">
           <table>
             <thead>
               <tr>
@@ -246,13 +166,20 @@ const Floors = () => {
               </tr>
             </thead>
             <tbody>
-              {floors.map(f => (
+              {floors.map((f) => (
                 <tr key={f.id}>
                   <td>{f.buildingName}</td>
                   <td>{f.floorName}</td>
                   <td>
-                    <button className='edit-btn' onClick={() => handleEdit(f)}>Edit</button>
-                    <button className='delete-btn' onClick={() => handleDelete(f.id)}>Delete</button>
+                    <button className="edit-btn" onClick={() => handleEdit(f)}>
+                      Edit
+                    </button>
+                    <button
+                      className="delete-btn"
+                      onClick={() => handleDelete(f.id)}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -260,18 +187,27 @@ const Floors = () => {
           </table>
         </div>
 
-        <div className='mobile-list'>
-          {floors.map(f => (
-            <div key={f.id} className='mobile-row'>
-              <div className='mobile-field'>
-                <span className='label'>Building:</span> <span className='value'>{f.buildingName}</span>
+        <div className="mobile-list">
+          {floors.map((f) => (
+            <div key={f.id} className="mobile-row">
+              <div className="mobile-field">
+                <span className="label">Building:</span>{" "}
+                <span className="value">{f.buildingName}</span>
               </div>
-              <div className='mobile-field'>
-                <span className='label'>Floor:</span> <span className='value'>{f.floorName}</span>
+              <div className="mobile-field">
+                <span className="label">Floor:</span>{" "}
+                <span className="value">{f.floorName}</span>
               </div>
-              <div className='mobile-field'>
-                <button className='edit-btn' onClick={() => handleEdit(f)}>Edit</button>
-                <button className='delete-btn' onClick={() => handleDelete(f.id)}>Delete</button>
+              <div className="mobile-field">
+                <button className="edit-btn" onClick={() => handleEdit(f)}>
+                  Edit
+                </button>
+                <button
+                  className="delete-btn"
+                  onClick={() => handleDelete(f.id)}
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}
@@ -281,4 +217,4 @@ const Floors = () => {
   );
 };
 
-export default Floors
+export default Floors;

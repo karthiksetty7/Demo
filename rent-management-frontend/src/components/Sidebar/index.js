@@ -9,7 +9,6 @@ import {
   FaUsers,
   FaMoneyCheckAlt,
   FaFileInvoiceDollar,
-  FaChartBar,
   FaSignOutAlt,
 } from 'react-icons/fa';
 
@@ -21,7 +20,6 @@ const menuItems = [
   { name: 'Tenants', path: '/tenants', icon: <FaUsers /> },
   { name: 'Rent Entry', path: '/rent-entry', icon: <FaMoneyCheckAlt /> },
   { name: 'Bills', path: '/bills', icon: <FaFileInvoiceDollar /> },
-  { name: 'Reports', path: '/reports', icon: <FaChartBar /> },
 ];
 
 const Sidebar = ({ isOpen, closeSidebar }) => {

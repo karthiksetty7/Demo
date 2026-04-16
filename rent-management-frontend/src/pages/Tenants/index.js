@@ -84,28 +84,30 @@ const Tenants = () => {
 
   // Fetch Tenants
   const fetchTenants = useCallback(async () => {
-    const data = await apiRequest({
-      endpoint: "/tenants/getTenants",
-      method: "GET",
-      navigate,
-    });
+  const res = await apiRequest({
+    endpoint: "/tenants/getTenants",
+    method: "GET",
+    navigate,
+  });
 
-    if (!data) return;
+  if (!res) return;
 
-    setTenants(
-      (Array.isArray(data) ? data : []).map((t) => ({
-        ...t,
-        documents: Array.isArray(t.documents)
-          ? t.documents
-          : typeof t.documents === "string"
-            ? JSON.parse(t.documents)
-            : [],
-        building: { name: t.building?.name || "" },
-        floor: { floor_number: t.floor?.floor_number || "" },
-        room: { room_number: t.room?.room_number || "" },
-      })),
-    );
-  }, [navigate]);
+  const tenantsData = res.data || []; 
+
+  setTenants(
+    tenantsData.map((t) => ({
+      ...t,
+      documents: Array.isArray(t.documents)
+        ? t.documents
+        : typeof t.documents === "string"
+        ? JSON.parse(t.documents)
+        : [],
+      building: { name: t.building?.name || "" },
+      floor: { floor_number: t.floor?.floor_number || "" },
+      room: { room_number: t.room?.room_number || "" },
+    }))
+  );
+}, [navigate]);
 
   useEffect(() => {
     fetchBuildings();
@@ -140,17 +142,20 @@ const Tenants = () => {
     setFiles(validFiles);
   };
 
-  const validate = () => {
-    if (!/^[a-zA-Z\s]+$/.test(name)) {
-      alert("Tenant name must contain only letters and spaces");
-      return false;
-    }
-    if (!/^\d+$/.test(phone)) {
-      alert("Phone number must contain only digits");
-      return false;
-    }
-    return true;
-  };
+ const validate = () => {
+  if (!/^[a-zA-Z\s]+$/.test(name)) {
+    alert("Tenant name must contain only letters and spaces");
+    return false;
+  }
+
+  // ✅ Must be exactly 10 digits
+  if (!/^\d{10}$/.test(phone)) {
+    alert("Phone number must contain exactly 10 digits");
+    return false;
+  }
+
+  return true;
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -205,7 +210,7 @@ const Tenants = () => {
 
     // ✅ Refresh latest data from backend 
     fetchTenants();
-    
+
     handleCancel();
   };
   const handleEdit = (tenant) => {

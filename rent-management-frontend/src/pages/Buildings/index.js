@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback , useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../../utils/api";
 import Layout from "../../components/Layout";
@@ -24,6 +24,11 @@ const Buildings = () => {
 
     setBuildings(Array.isArray(data) ? data : data.data || []);
   }, [navigate]);
+
+
+  useEffect(() => {
+  fetchBuildings();
+}, [fetchBuildings]);
 
   // ADD / UPDATE
   const handleSubmit = async (e) => {
