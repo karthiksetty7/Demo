@@ -1,6 +1,6 @@
 import { handleAuthError } from "./auth";
 
-const BASE_URL = "https://demo-production-bf0f.up.railway.app/api";
+const BASE_URL = import.meta.env.VITE_API_URL; // ✅ ENV BASE URL
 
 export const apiRequest = async ({
   endpoint,
@@ -12,8 +12,11 @@ export const apiRequest = async ({
 
   if (!token) {
     handleAuthError(navigate);
-    return null;
+    return { success: false, message: "No token" };
   }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // ⏱ 10s timeout
 
   try {
     const isFormData = body instanceof FormData;
@@ -29,42 +32,45 @@ export const apiRequest = async ({
         : body
         ? JSON.stringify(body)
         : null,
+      signal: controller.signal,
     });
 
-    // ✅ Handle unauthorized
+    clearTimeout(timeout);
+
+    // 🔐 Unauthorized
     if (res.status === 401) {
       handleAuthError(navigate);
-      return null;
+      return { success: false, message: "Unauthorized" };
     }
 
-    let data;
+    let data = {};
     try {
       data = await res.json();
-    } catch {
-      data = {};
-    }
+    } catch {}
 
-    // ❗ Handle BOTH HTTP errors + backend errors
+    // ❗ Handle backend errors
     if (!res.ok || data.success === false) {
-      console.log("❌ API ERROR RESPONSE:", data);
-
-      alert(
-        data.message ||
-        data.error ||
-        "Something went wrong. Please try again."
-      );
-
-      return null;
+      return {
+        success: false,
+        message:
+          data.message ||
+          data.error ||
+          "Something went wrong",
+      };
     }
 
-    // ✅ SUCCESS RESPONSE
     return data;
 
   } catch (error) {
-    console.error("❌ Network Error:", error);
+    console.error("❌ API ERROR:", error);
 
-    alert("Server not reachable. Check internet or backend.");
+    if (error.name === "AbortError") {
+      return { success: false, message: "Request timeout" };
+    }
 
-    return null;
+    return {
+      success: false,
+      message: "Server not reachable",
+    };
   }
 };
