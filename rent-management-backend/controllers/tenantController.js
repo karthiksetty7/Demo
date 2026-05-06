@@ -1,4 +1,3 @@
-import { Sequelize } from "sequelize";
 import streamifier from "streamifier";
 import cloudinary from "../config/cloudinary.js";
 
@@ -7,133 +6,156 @@ import Building from "../models/Building.js";
 import Floor from "../models/Floor.js";
 import Room from "../models/Room.js";
 
-/* =========================
-   GET ALL TENANTS
-========================= */
+/* ================= VALIDATION ================= */
+const validateTenant = (data) => {
+  if (!data.name?.trim()) return "Name is required";
+  if (!data.phone?.trim()) return "Phone is required";
+  if (!data.join_date) return "Join date is required";
+
+  if (!data.building_id || !data.floor_id || !data.room_id) {
+    return "Building, Floor and Room are required";
+  }
+
+  return null;
+};
+
+/* ================= CLOUDINARY UPLOAD ================= */
+const uploadToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "tenants" },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    streamifier.createReadStream(fileBuffer).pipe(stream);
+  });
+};
+
+/* ================= GET TENANTS ================= */
 export const getTenants = async (req, res) => {
   try {
     const tenants = await Tenant.findAll({
       order: [["id", "DESC"]],
       include: [
-        { model: Building, as: "building", attributes: ["name"] },
-        { model: Floor, as: "floor", attributes: ["floor_number"] },
-        { model: Room, as: "room", attributes: ["room_number"] },
+        { model: Building, as: "building", attributes: ["id", "name"] },
+        { model: Floor, as: "floor", attributes: ["id", "floor_number"] },
+        { model: Room, as: "room", attributes: ["id", "room_number"] },
       ],
     });
 
-    const cleaned = tenants.map((t) => {
-      const json = t.toJSON();
-
-      return {
-        ...json,
-        documents:
-          typeof json.documents === "string"
-            ? JSON.parse(json.documents)
-            : Array.isArray(json.documents)
-            ? json.documents
-            : [],
-        building: json.building || null,
-        floor: json.floor || null,
-        room: json.room || null,
-      };
-    });
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      message: "Tenants fetched successfully",
-      count: cleaned.length,
-      data: cleaned,
+      count: tenants.length,
+      data: tenants,
     });
 
   } catch (error) {
-    console.error("GET TENANTS ERROR:", error);
+    console.error("❌ GET TENANTS ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to fetch tenants",
-      error: error.message,
     });
   }
 };
 
-/* =========================
-   ADD TENANT
-========================= */
+/* ================= ADD TENANT ================= */
 export const addTenant = async (req, res) => {
   try {
-    const { building_id, floor_id, room_id } = req.body;
+    const data = {
+      name: req.body.name?.trim(),
+      phone: req.body.phone?.trim(),
+      advance: Number(req.body.advance || 0),
+      join_date: req.body.join_date,
+      building_id: Number(req.body.building_id),
+      floor_id: Number(req.body.floor_id),
+      room_id: Number(req.body.room_id),
+    };
 
+    const validationError = validateTenant(data);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    // ✅ Validate relationships
+    const building = await Building.findByPk(data.building_id);
+    const floor = await Floor.findByPk(data.floor_id);
+    const room = await Room.findByPk(data.room_id);
+
+    if (!building || !floor || !room) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid building/floor/room",
+      });
+    }
+
+    if (floor.building_id !== data.building_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Floor does not belong to building",
+      });
+    }
+
+    if (room.floor_id !== data.floor_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Room does not belong to floor",
+      });
+    }
+
+    // ✅ Check occupancy
     const existingTenant = await Tenant.findOne({
       where: {
-        building_id: parseInt(building_id),
-        floor_id: parseInt(floor_id),
-        room_id: parseInt(room_id),
+        room_id: data.room_id,
       },
     });
 
     if (existingTenant) {
       return res.status(400).json({
         success: false,
-        message: "This room is already occupied",
+        message: "Room is already occupied",
       });
     }
 
-    // Upload helper
-    const uploadToCloudinary = (fileBuffer) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "tenants" },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        streamifier.createReadStream(fileBuffer).pipe(stream);
-      });
-    };
-
+    // Upload documents
     let documents = [];
 
     if (req.files?.length > 0) {
       documents = await Promise.all(
         req.files.map(async (file) => {
           const result = await uploadToCloudinary(file.buffer);
-          return { url: result.secure_url };
+          return {
+            url: result.secure_url,
+            public_id: result.public_id,
+          };
         })
       );
     }
 
     const tenant = await Tenant.create({
-      name: req.body.name,
-      phone: req.body.phone,
-      advance: parseFloat(req.body.advance),
-      join_date: req.body.join_date,
-      building_id: parseInt(building_id),
-      floor_id: parseInt(floor_id),
-      room_id: parseInt(room_id),
+      ...data,
       documents,
     });
 
     return res.status(201).json({
       success: true,
       message: "Tenant added successfully",
-      tenant,
+      data: tenant,
     });
 
   } catch (error) {
-    console.error("ADD TENANT ERROR:", error);
+    console.error("❌ ADD TENANT ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to add tenant",
-      error: error.message,
     });
   }
 };
 
-/* =========================
-   UPDATE TENANT
-========================= */
+/* ================= UPDATE TENANT ================= */
 export const updateTenant = async (req, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
@@ -145,69 +167,75 @@ export const updateTenant = async (req, res) => {
       });
     }
 
-    const uploadToCloudinary = (fileBuffer) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "tenants" },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        streamifier.createReadStream(fileBuffer).pipe(stream);
-      });
+    const data = {
+      name: req.body.name?.trim() || tenant.name,
+      phone: req.body.phone?.trim() || tenant.phone,
+      advance: req.body.advance ? Number(req.body.advance) : tenant.advance,
+      join_date: req.body.join_date || tenant.join_date,
+      building_id: req.body.building_id
+        ? Number(req.body.building_id)
+        : tenant.building_id,
+      floor_id: req.body.floor_id
+        ? Number(req.body.floor_id)
+        : tenant.floor_id,
+      room_id: req.body.room_id
+        ? Number(req.body.room_id)
+        : tenant.room_id,
     };
 
-    let newDocs = [];
+    // Validate relationships again
+    const floor = await Floor.findByPk(data.floor_id);
+    const room = await Room.findByPk(data.room_id);
 
-    if (req.files?.length > 0) {
-      newDocs = await Promise.all(
-        req.files.map(async (file) => {
-          const result = await uploadToCloudinary(file.buffer);
-          return { url: result.secure_url };
-        })
-      );
+    if (floor.building_id !== data.building_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Floor mismatch",
+      });
     }
 
-    await tenant.update({
-      name: req.body.name,
-      phone: req.body.phone,
-      advance: parseFloat(req.body.advance),
-      join_date: req.body.join_date,
-      building_id: Number(req.body.building_id),
-      floor_id: Number(req.body.floor_id),
-      room_id: Number(req.body.room_id),
-      documents: newDocs.length ? newDocs : tenant.documents,
-    });
+    if (room.floor_id !== data.floor_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Room mismatch",
+      });
+    }
 
-    const updatedTenant = await Tenant.findByPk(req.params.id, {
-      include: [
-        { model: Building, as: "building", attributes: ["name"] },
-        { model: Floor, as: "floor", attributes: ["floor_number"] },
-        { model: Room, as: "room", attributes: ["room_number"] },
-      ],
-    });
+    let documents = tenant.documents || [];
 
-    return res.status(200).json({
+    if (req.files?.length > 0) {
+      const newDocs = await Promise.all(
+        req.files.map(async (file) => {
+          const result = await uploadToCloudinary(file.buffer);
+          return {
+            url: result.secure_url,
+            public_id: result.public_id,
+          };
+        })
+      );
+
+      documents = [...documents, ...newDocs];
+    }
+
+    await tenant.update({ ...data, documents });
+
+    return res.json({
       success: true,
       message: "Tenant updated successfully",
-      tenant: updatedTenant,
+      data: tenant,
     });
 
   } catch (error) {
-    console.error("UPDATE TENANT ERROR:", error);
+    console.error("❌ UPDATE TENANT ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to update tenant",
-      error: error.message,
     });
   }
 };
 
-/* =========================
-   DELETE TENANT
-========================= */
+/* ================= DELETE TENANT ================= */
 export const deleteTenant = async (req, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
@@ -219,38 +247,27 @@ export const deleteTenant = async (req, res) => {
       });
     }
 
-    const docs = Array.isArray(tenant.documents) ? tenant.documents : [];
+    const docs = tenant.documents || [];
 
-    // Delete from Cloudinary
-    for (const f of docs) {
-      if (!f?.url) continue;
-
-      try {
-        const parts = f.url.split("/");
-        const fileName = parts.pop();
-        const folder = parts.pop();
-        const publicId = `${folder}/${fileName.split(".")[0]}`;
-
-        await cloudinary.uploader.destroy(publicId);
-      } catch (err) {
-        console.warn("Cloudinary delete warning:", err.message);
+    for (const file of docs) {
+      if (file?.public_id) {
+        await cloudinary.uploader.destroy(file.public_id);
       }
     }
 
     await tenant.destroy();
 
-    return res.status(200).json({
+    return res.json({
       success: true,
       message: "Tenant deleted successfully",
     });
 
   } catch (error) {
-    console.error("DELETE TENANT ERROR:", error);
+    console.error("❌ DELETE TENANT ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to delete tenant",
-      error: error.message,
     });
   }
 };
