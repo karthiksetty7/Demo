@@ -1,63 +1,26 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../config/db.js";
-import Tenant from "./Tenant.js";
 
 const Bill = sequelize.define(
   "Bill",
   {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-    },
-
-    bill_number: {
-      type: DataTypes.STRING,
-      unique: true,
-    },
-
+    id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
+    bill_number: { type: DataTypes.STRING, allowNull: false, unique: true },
     tenant_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: false,
+      references: { model: "Tenants", key: "id" },
     },
-
-    previous_reading: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-
-    current_reading: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-
-    units: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-
-    rate: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-    },
-
-    amount: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-    },
-
-    month: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-
-    year: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-
+    previous_reading: DataTypes.INTEGER,
+    current_reading: DataTypes.INTEGER,
+    units: DataTypes.INTEGER,
+    rate: DataTypes.DECIMAL(10, 2),
+    amount: DataTypes.DECIMAL(10, 2),
+    month: DataTypes.STRING,
+    year: DataTypes.INTEGER,
     generated_date: {
       type: DataTypes.DATEONLY,
+      defaultValue: DataTypes.NOW,
     },
   },
   {
@@ -65,25 +28,13 @@ const Bill = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
+    hooks: {
+      beforeValidate: (b) => {
+        b.units = b.current_reading - b.previous_reading;
+        b.amount = b.units * b.rate;
+      },
+    },
   }
 );
-
-// =========================
-// Associations (IMPORTANT)
-// =========================
-
-// Bill → Tenant
-Bill.belongsTo(Tenant, {
-  foreignKey: "tenant_id",
-  as: "tenant",
-  onDelete: "CASCADE",
-  onUpdate: "CASCADE",
-});
-
-// Tenant → Bills
-Tenant.hasMany(Bill, {
-  foreignKey: "tenant_id",
-  as: "bills",
-});
 
 export default Bill;
