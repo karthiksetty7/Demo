@@ -7,23 +7,39 @@ import { Op } from "sequelize";
 
 /* ================= BILL NUMBER ================= */
 const generateBillNumber = () => {
-  return "BILL-" + Date.now();
+  return `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 };
 
 /* ================= NORMALIZER ================= */
 const normalize = (body) => ({
   tenant_id: Number(body.tenant_id),
-
   previous_reading: Number(body.previous_reading),
   current_reading: Number(body.current_reading),
-  units: Number(body.units),
-
   rate: Number(body.rate),
-  amount: Number(body.amount),
-
-  month: body.month?.trim(), // cleaned
+  month: body.month?.trim().toLowerCase(),
   year: Number(body.year),
 });
+
+/* ================= VALIDATION ================= */
+const validateBillData = (data) => {
+  if (!data.tenant_id || !data.month || !data.year) {
+    return "Required fields missing";
+  }
+
+  if (
+    isNaN(data.previous_reading) ||
+    isNaN(data.current_reading) ||
+    isNaN(data.rate)
+  ) {
+    return "Invalid numeric values";
+  }
+
+  if (data.current_reading < data.previous_reading) {
+    return "Current reading must be greater than previous reading";
+  }
+
+  return null;
+};
 
 /* ================= GET ALL BILLS ================= */
 export const getBills = async (req, res) => {
@@ -34,22 +50,25 @@ export const getBills = async (req, res) => {
           model: Tenant,
           as: "tenant",
           attributes: ["id", "name"],
-
+          required: false,
           include: [
             {
               model: Room,
               as: "room",
-              attributes: ["room_number", "building_id", "floor_id"],
+              attributes: ["room_number"],
+              required: false,
             },
             {
               model: Floor,
               as: "floor",
               attributes: ["floor_number"],
+              required: false,
             },
             {
               model: Building,
               as: "building",
               attributes: ["name"],
+              required: false,
             },
           ],
         },
@@ -62,12 +81,11 @@ export const getBills = async (req, res) => {
       data: bills || [],
     });
   } catch (err) {
-    console.error("❌ GET BILLS ERROR:", err);
+    console.error("❌ GET BILLS ERROR:", err.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to fetch bills",
-      error: err.message,
     });
   }
 };
@@ -76,6 +94,14 @@ export const getBills = async (req, res) => {
 export const addBill = async (req, res) => {
   try {
     const data = normalize(req.body);
+
+    const validationError = validateBillData(data);
+    if (validationError) {
+      return res.status(400).json({
+        success: false,
+        message: validationError,
+      });
+    }
 
     const existing = await Bill.findOne({
       where: {
@@ -104,12 +130,11 @@ export const addBill = async (req, res) => {
       data: bill,
     });
   } catch (err) {
-    console.error("❌ CREATE BILL ERROR:", err);
+    console.error("❌ CREATE BILL ERROR:", err.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to create bill",
-      error: err.message,
     });
   }
 };
@@ -130,7 +155,14 @@ export const updateBill = async (req, res) => {
 
     const data = normalize(req.body);
 
-    // ✅ FIXED DUPLICATE CHECK (important)
+    const validationError = validateBillData(data);
+    if (validationError) {
+      return res.status(400).json({
+        success: false,
+        message: validationError,
+      });
+    }
+
     const duplicate = await Bill.findOne({
       where: {
         tenant_id: data.tenant_id,
@@ -155,12 +187,11 @@ export const updateBill = async (req, res) => {
       data: bill,
     });
   } catch (err) {
-    console.error("❌ UPDATE BILL ERROR:", err);
+    console.error("❌ UPDATE BILL ERROR:", err.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to update bill",
-      error: err.message,
     });
   }
 };
@@ -184,12 +215,11 @@ export const deleteBill = async (req, res) => {
       message: "Bill deleted successfully",
     });
   } catch (err) {
-    console.error("❌ DELETE BILL ERROR:", err);
+    console.error("❌ DELETE BILL ERROR:", err.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to delete bill",
-      error: err.message,
     });
   }
 };
@@ -199,9 +229,16 @@ export const getLastBill = async (req, res) => {
   try {
     const { tenantId } = req.query;
 
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: "tenantId is required",
+      });
+    }
+
     const bill = await Bill.findOne({
       where: { tenant_id: tenantId },
-      order: [["createdAt", "DESC"]], // ✅ FIXED (better than id)
+      order: [["created_at", "DESC"]], // ✅ FIXED
     });
 
     return res.json({
@@ -209,12 +246,11 @@ export const getLastBill = async (req, res) => {
       data: bill || null,
     });
   } catch (err) {
-    console.error("❌ LAST BILL ERROR:", err);
+    console.error("❌ LAST BILL ERROR:", err.message);
 
     return res.status(500).json({
       success: false,
       message: "Failed to fetch last bill",
-      error: err.message,
     });
   }
 };
