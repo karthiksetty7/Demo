@@ -5,27 +5,19 @@ const Building = sequelize.define(
   "Building",
   {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       primaryKey: true,
       autoIncrement: true,
     },
-
     name: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
-      validate: {
-        notEmpty: true,
-      },
+      validate: { notEmpty: true },
     },
-
     address: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
-      validate: {
-        notEmpty: true,
-      },
     },
   },
   {
