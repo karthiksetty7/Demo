@@ -1,31 +1,50 @@
 import Building from '../models/Building.js';
 
-// Get all buildings
+/* ================= GET ALL BUILDINGS ================= */
 export const getBuildings = async (req, res) => {
   try {
-    const buildings = await Building.findAll({ order: [['id', 'DESC']] });
-    res.json(buildings);
+    const buildings = await Building.findAll({
+      order: [['id', 'DESC']]
+    });
+
+    return res.json({
+      success: true,
+      data: buildings || [],
+    });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ GET BUILDINGS ERROR:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch buildings',
+    });
   }
 };
 
-
-
-// Add building
+/* ================= ADD BUILDING ================= */
 export const addBuilding = async (req, res) => {
-  const { name, address } = req.body;
+  let { name, address } = req.body;
 
-  if (typeof name !== 'string' || typeof address !== 'string') {
-    return res.status(400).json({ error: 'Name and address must be strings' });
+  // ✅ Trim inputs
+  name = name?.trim();
+  address = address?.trim();
+
+  // ✅ Validation
+  if (!name || !address) {
+    return res.status(400).json({
+      success: false,
+      message: 'Name and address are required',
+    });
   }
 
   try {
     const building = await Building.create({ name, address });
 
-    res.json({
+    return res.status(201).json({
+      success: true,
       message: 'Building added successfully',
-      building
+      data: building,
     });
 
   } catch (err) {
@@ -34,51 +53,94 @@ export const addBuilding = async (req, res) => {
       const field = err.errors?.[0]?.path;
 
       if (field === 'name') {
-        return res.status(400).json({ error: 'Building name already exists' });
+        return res.status(400).json({
+          success: false,
+          message: 'Building name already exists',
+        });
       }
 
       if (field === 'address') {
-        return res.status(400).json({ error: 'Address already exists' });
+        return res.status(400).json({
+          success: false,
+          message: 'Address already exists',
+        });
       }
 
-      return res.status(400).json({ error: 'Duplicate entry' });
+      return res.status(400).json({
+        success: false,
+        message: 'Duplicate entry',
+      });
     }
 
-    res.status(500).json({ error: err.message });
+    console.error("❌ ADD BUILDING ERROR:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to add building',
+    });
   }
 };
 
-// Delete building
+/* ================= DELETE BUILDING ================= */
 export const deleteBuilding = async (req, res) => {
   const { id } = req.params;
-  try {
-    await Building.destroy({ where: { id } });
-    res.json({ message: 'Building deleted' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Update building
-export const updateBuilding = async (req, res) => {
-  const { id } = req.params;
-  const { name, address } = req.body;
 
   try {
     const building = await Building.findByPk(id);
 
     if (!building) {
-      return res.status(404).json({ message: 'Building not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Building not found',
+      });
     }
 
+    await building.destroy();
+
+    return res.json({
+      success: true,
+      message: 'Building deleted successfully',
+    });
+
+  } catch (err) {
+    console.error("❌ DELETE BUILDING ERROR:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete building',
+    });
+  }
+};
+
+/* ================= UPDATE BUILDING ================= */
+export const updateBuilding = async (req, res) => {
+  const { id } = req.params;
+  let { name, address } = req.body;
+
+  try {
+    const building = await Building.findByPk(id);
+
+    if (!building) {
+      return res.status(404).json({
+        success: false,
+        message: 'Building not found',
+      });
+    }
+
+    // ✅ Trim if provided
+    if (name) name = name.trim();
+    if (address) address = address.trim();
+
+    // ✅ Update only if exists
     building.name = name || building.name;
     building.address = address || building.address;
 
     await building.save();
 
-    res.json({
+    return res.json({
+      success: true,
       message: 'Building updated successfully',
-      building
+      data: building,
     });
 
   } catch (err) {
@@ -87,16 +149,30 @@ export const updateBuilding = async (req, res) => {
       const field = err.errors?.[0]?.path;
 
       if (field === 'name') {
-        return res.status(400).json({ error: 'Building name already exists' });
+        return res.status(400).json({
+          success: false,
+          message: 'Building name already exists',
+        });
       }
 
       if (field === 'address') {
-        return res.status(400).json({ error: 'Address already exists' });
+        return res.status(400).json({
+          success: false,
+          message: 'Address already exists',
+        });
       }
 
-      return res.status(400).json({ error: 'Duplicate entry' });
+      return res.status(400).json({
+        success: false,
+        message: 'Duplicate entry',
+      });
     }
 
-    res.status(500).json({ error: err.message });
+    console.error("❌ UPDATE BUILDING ERROR:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update building',
+    });
   }
 };
