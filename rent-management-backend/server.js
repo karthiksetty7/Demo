@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 import authRoutes from './routes/authRoutes.js';
 import buildingRoutes from './routes/buildingRoutes.js';
@@ -21,48 +23,45 @@ const app = express();
 
 console.log("🔥 SERVER STARTED");
 
-// =========================
-// ✅ CORS (FINAL PRODUCTION READY)
-// =========================
+/* ================= SECURITY ================= */
+
+// Helmet
+app.use(helmet());
+
+// Rate limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+});
+app.use(limiter);
+
+/* ================= CORS ================= */
+
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
   "http://127.0.0.1:3000",
-  "https://demo-production-bf0f.up.railway.app",
-
-  // ✅ Your Vercel Frontend
-  "https://demo-lilac-three-77.vercel.app"
+  "https://demo-production-bf0f.up.railway.app"
 ];
 
-const corsOptions = {
+app.use(cors({
   origin: function (origin, callback) {
-    if (
-      !origin || // allow Postman / mobile apps
-      allowedOrigins.includes(origin) ||
-      origin.endsWith(".vercel.app") // ✅ allow all Vercel deployments
-    ) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("❌ CORS blocked for origin: " + origin));
+      callback(null, false); // safer than throwing error
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
-};
+}));
 
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+/* ================= BODY PARSER ================= */
 
-// =========================
-// BODY PARSER
-// =========================
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// =========================
-// UPLOAD FOLDER
-// =========================
+/* ================= UPLOAD FOLDER ================= */
+
 const uploadsPath = path.join(process.cwd(), 'uploads');
 const tenantsPath = path.join(uploadsPath, 'tenants');
 
@@ -72,16 +71,14 @@ if (!fs.existsSync(tenantsPath)) {
 
 app.use('/uploads', express.static(uploadsPath));
 
-// =========================
-// HEALTH CHECK
-// =========================
+/* ================= HEALTH CHECK ================= */
+
 app.get('/', (req, res) => {
   res.json({ message: "API is running 🚀" });
 });
 
-// =========================
-// ROUTES
-// =========================
+/* ================= ROUTES ================= */
+
 app.use('/api/auth', authRoutes);
 app.use('/api/buildings', buildingRoutes);
 app.use('/api/floors', floorRoutes);
@@ -90,21 +87,36 @@ app.use('/api/tenants', tenantRoutes);
 app.use("/api/rent", rentEntryRoutes);
 app.use("/api/bills", billRoutes);
 
-// =========================
-// GLOBAL ERROR HANDLER (NEW)
-// =========================
-app.use((err, req, res, next) => {
-  console.error("❌ ERROR:", err.message);
-  res.status(500).json({ message: err.message });
+/* ================= 404 HANDLER ================= */
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
 });
 
-// =========================
-// START SERVER
-// =========================
+/* ================= GLOBAL ERROR HANDLER ================= */
+
+app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR:", err);
+
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Server Error",
+  });
+});
+
+/* ================= START SERVER ================= */
+
 const startServer = async () => {
   try {
     await connectDB();
-    await sequelize.sync();
+
+    // ⚠️ Only sync in development
+    if (process.env.NODE_ENV === "development") {
+      await sequelize.sync();
+    }
 
     const PORT = process.env.PORT || 5000;
 
