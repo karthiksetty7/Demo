@@ -1,5 +1,14 @@
-export const handleAuthError = (navigate) => {
-  alert("Session expired. Please login again.");
+import { toast } from "react-toastify";
+
+export const handleAuthError = (
+  navigate,
+  message = "Session expired. Please login again."
+) => {
+  toast.error(message);
+
   localStorage.removeItem("token");
-  navigate("/"); // login path
+
+  if (typeof navigate === "function") {
+    navigate("/");
+  }
 };
