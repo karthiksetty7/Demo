@@ -7,12 +7,25 @@ import {
   getLastBill
 } from '../controllers/billController.js';
 
+import { protect } from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
-router.get('/getBills', getBills);
-router.post('/addBill', addBill);
-router.put('/updateBill/:id', updateBill);
-router.delete('/deleteBill/:id', deleteBill);
-router.get('/last', getLastBill);
+/* ================= BILL ROUTES ================= */
+
+// GET all bills
+router.get('/', protect, getBills);
+
+// CREATE bill
+router.post('/', protect, addBill);
+
+// UPDATE bill
+router.put('/:id', protect, updateBill);
+
+// DELETE bill
+router.delete('/:id', protect, deleteBill);
+
+// GET last bill of tenant
+router.get('/last', protect, getLastBill);
 
 export default router;
