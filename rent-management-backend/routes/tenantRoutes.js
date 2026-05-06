@@ -11,17 +11,46 @@ import {
 
 const router = express.Router();
 
-// Protect routes
+// 🔐 Protect all routes
 router.use(protect);
 
-// ✅ MEMORY STORAGE (IMPORTANT)
+/* ================= MULTER CONFIG ================= */
+
+// Memory storage (for Cloudinary)
 const storage = multer.memoryStorage();
 
-const upload = multer({ storage });
+// File filter (only images/pdf)
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 
-router.get('/getTenants', getTenants);
-router.post('/addTenant', upload.array('documents', 5), addTenant);
-router.put('/updateTenant/:id', upload.array('documents', 5), updateTenant);
-router.delete('/deleteTenant/:id', deleteTenant);
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JPG, PNG, PDF files are allowed'), false);
+  }
+};
+
+// Upload config
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB per file
+  },
+  fileFilter,
+});
+
+/* ================= TENANT ROUTES ================= */
+
+// GET all tenants
+router.get('/', getTenants);
+
+// CREATE tenant
+router.post('/', upload.array('documents', 5), addTenant);
+
+// UPDATE tenant
+router.put('/:id', upload.array('documents', 5), updateTenant);
+
+// DELETE tenant
+router.delete('/:id', deleteTenant);
 
 export default router;
