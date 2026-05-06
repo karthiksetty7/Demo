@@ -9,12 +9,21 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// All routes protected
+// 🔐 Protect all routes
 router.use(protect);
 
-router.get('/getRooms', getRooms);
-router.post('/addRoom', addRoom);
-router.put('/updateRoom/:id', updateRoom);
-router.delete('/deleteRoom/:id', deleteRoom);
+/* ================= ROOM ROUTES ================= */
+
+// GET all rooms
+router.get('/', getRooms);
+
+// CREATE room
+router.post('/', addRoom);
+
+// UPDATE room
+router.put('/:id', updateRoom);
+
+// DELETE room
+router.delete('/:id', deleteRoom);
 
 export default router;
