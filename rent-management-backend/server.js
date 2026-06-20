@@ -14,6 +14,8 @@ import billRoutes from "./routes/billRoutes.js";
 
 import { connectDB, sequelize } from './config/db.js';
 
+import './models/index.js';
+
 import path from 'path';
 import fs from 'fs';
 
@@ -28,20 +30,14 @@ console.log("🔥 SERVER STARTED");
 // Helmet
 app.use(helmet());
 
-// Rate limiter
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-});
-app.use(limiter);
-
 /* ================= CORS ================= */
 
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
   "http://127.0.0.1:3000",
-  "https://demo-production-bf0f.up.railway.app"
+  "https://demo-production-bf0f.up.railway.app",
+  "https://demo-lilac-three-77.vercel.app" // Add this line
 ];
 
 app.use(cors({
@@ -49,11 +45,23 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, false); // safer than throwing error
+      callback(null, false);
     }
   },
   credentials: true,
 }));
+
+// Rate limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+
+app.use(limiter);
+
 
 /* ================= BODY PARSER ================= */
 
@@ -71,7 +79,7 @@ if (!fs.existsSync(tenantsPath)) {
 
 app.use('/uploads', express.static(uploadsPath));
 
-/* ================= HEALTH CHECK ================= */
+/* ================= HEALTH CHECKa ================= */
 
 app.get('/', (req, res) => {
   res.json({ message: "API is running 🚀" });
