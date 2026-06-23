@@ -1,6 +1,6 @@
 import { handleAuthError } from "./auth";
 
-const BASE_URL = import.meta.env.VITE_API_URL; // ✅ ENV BASE URL
+const BASE_URL = import.meta.env.VITE_API_URL; // ✅ ENV
 
 export const apiRequest = async ({
   endpoint,
